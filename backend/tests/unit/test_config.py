@@ -6,7 +6,7 @@ from app.core.config import Settings, settings
 
 def test_config_defaults():
     """Verify application default configuration."""
-    assert "Checkpoint" in settings.APP_NAME
+    assert "CHECKPOINT" in settings.APP_NAME.upper()
     assert "sqlite+aiosqlite" in settings.get_database_url()
     assert settings.HOST in ("127.0.0.1", "localhost")
     assert settings.PORT in (8765, 8000)

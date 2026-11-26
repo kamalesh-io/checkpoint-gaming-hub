@@ -3,6 +3,7 @@ import datetime
 from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
+from app.core.config import settings
 
 
 MOCK_GAME = {
@@ -255,6 +256,14 @@ async def test_phase5_full_feature_suite(client: AsyncClient):
         assert "ui_theme" in get_settings.json()
 
         # ---------------- 9. Phase 5I: Backup & Import/Export ----------------
+        # Ensure source sqlite database file exists on disk for backup test
+        import sqlite3
+        source_db = settings.DATA_DIR / "checkpoint.db"
+        source_db.parent.mkdir(parents=True, exist_ok=True)
+        if not source_db.exists():
+            with sqlite3.connect(source_db) as conn:
+                conn.execute("CREATE TABLE IF NOT EXISTS test (id INT)")
+
         # Create SQLite backup
         backup_res = await client.post("/api/v1/system/backup")
         assert backup_res.status_code == 201
