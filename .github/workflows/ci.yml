@@ -32,8 +32,9 @@ jobs:
         env:
           APP_ENV: test
           CHECKPOINT_AUTH_TOKEN: test_ephemeral_token_1234567890abcdef
+          PYTHONPATH: .
         run: |
-          pytest -v
+          python -m pytest -v
 
   frontend-check:
     name: Frontend Quality & Build (Node.js)
