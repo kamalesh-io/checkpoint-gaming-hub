@@ -1,0 +1,34 @@
+import { apiClient } from '@/services/api';
+import type {
+  BackendHealthStatus,
+  IntegrationStatus,
+  SystemStatsResponse,
+} from '@/types';
+
+export const systemApi = {
+  checkHealth: (signal?: AbortSignal) =>
+    apiClient.get<BackendHealthStatus>('/system/health', undefined, signal, 2500),
+
+  getStatus: (signal?: AbortSignal) =>
+    apiClient.get<BackendHealthStatus>('/system/status', undefined, signal, 3000),
+
+  getIntegrations: (signal?: AbortSignal) =>
+    apiClient.get<IntegrationStatus>('/system/integrations', undefined, signal),
+
+  getStats: (signal?: AbortSignal) =>
+    apiClient.get<SystemStatsResponse>('/system/stats', undefined, signal),
+
+  updateCredentials: (
+    data: {
+      igdb_client_id?: string;
+      igdb_client_secret?: string;
+      steamgriddb_api_key?: string;
+    },
+    signal?: AbortSignal,
+  ) =>
+    apiClient.post<IntegrationStatus>(
+      '/system/credentials',
+      data,
+      signal,
+    ),
+};

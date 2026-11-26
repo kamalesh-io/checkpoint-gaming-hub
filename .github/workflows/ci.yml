@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-test:
+    name: Backend Tests (Python)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run Backend Tests
+        working-directory: backend
+        env:
+          APP_ENV: test
+          CHECKPOINT_AUTH_TOKEN: test_ephemeral_token_1234567890abcdef
+        run: |
+          pytest -v
+
+  frontend-check:
+    name: Frontend Quality & Build (Node.js)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript Strict Check
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: ESLint Check
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run Frontend Unit Tests
+        working-directory: frontend
+        run: npm run test
+
+      - name: Production Vite Build
+        working-directory: frontend
+        run: npm run build
+
+  rust-test:
+    name: Desktop Shell Tests (Rust)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Run Rust Cargo Tests
+        working-directory: src-tauri
+        run: cargo test --verbose

@@ -1,0 +1,48 @@
+{
+  "name": "checkpoint-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CHECKPOINT Gaming Hub - Local-First Desktop Client",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc -b --noEmit",
+    "tauri": "tauri",
+    "tauri:dev": "cd .. && .\\frontend\\node_modules\\.bin\\tauri.cmd dev",
+    "tauri:build": "cd .. && .\\frontend\\node_modules\\.bin\\tauri.cmd build"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/sora": "^5.3.0",
+    "@tanstack/react-query": "^5.108.4",
+    "@tauri-apps/api": "^2.12.5",
+    "lucide-react": "^1.79.0",
+    "motion": "^14.14.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.7",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.12.6",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.3.1",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.8",
+    "globals": "^17.14.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.74.0",
+    "vite": "^8.3.8"
+  }
+}

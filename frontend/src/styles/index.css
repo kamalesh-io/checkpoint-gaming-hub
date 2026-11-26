@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --checkpoint-bg: #111722;
+  --checkpoint-sidebar: #151d2a;
+  --checkpoint-surface: #222e40;
+  --checkpoint-surface-elevated: #2b384b;
+  --checkpoint-primary: #66b8ff;
+  --checkpoint-text: #f4f7fc;
+  --checkpoint-muted: #a8b5c7;
+  --accent-active: #66b8ff;
+  --accent-active-ink: #111722;
+  --accent-active-rgb: 102, 184, 255;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100%;
+  background-color: var(--checkpoint-bg);
+  color: var(--checkpoint-text);
+  font-family: 'Inter Variable', 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent accidental horizontal overflow across desktop viewports */
+body {
+  overflow-x: hidden;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable='true'],
+.selectable-text {
+  user-select: text;
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .checkpoint-glass {
+    background: rgba(21, 29, 42, 0.78);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(44, 57, 77, 0.65);
+  }
+
+  .checkpoint-hero-scrim-x {
+    background: linear-gradient(
+      90deg,
+      rgba(17, 23, 34, 0.96) 0%,
+      rgba(17, 23, 34, 0.8) 38%,
+      rgba(17, 23, 34, 0.3) 68%,
+      rgba(17, 23, 34, 0.12) 100%
+    );
+  }
+
+  .checkpoint-hero-scrim-y {
+    background: linear-gradient(
+      180deg,
+      rgba(17, 23, 34, 0.24) 0%,
+      rgba(17, 23, 34, 0) 42%,
+      rgba(17, 23, 34, 0.9) 82%,
+      #111722 100%
+    );
+  }
+
+  .checkpoint-accent-glow {
+    box-shadow:
+      0 0 0 1px rgba(var(--accent-active-rgb), 0.45),
+      0 12px 32px -6px rgba(var(--accent-active-rgb), 0.25);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Controller & Keyboard Spatial Focus Ring */
+[data-nav-item='true']:focus-visible {
+  outline: 2px solid var(--accent-active);
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(var(--accent-active-rgb), 0.35);
+}
+
+/* Distinct elevated spatial focus visual state for controller and keyboard arrows */
+[data-input-mode='controller'] [data-nav-item='true']:focus,
+[data-nav-item='true']:focus-visible {
+  outline: 3px solid var(--accent-active);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 2px rgba(var(--accent-active-rgb), 0.32),
+    0 14px 34px -4px rgba(var(--accent-active-rgb), 0.45);
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms ease-out;
+}
+
+[data-input-mode='controller'] .checkpoint-nav-card:focus,
+.checkpoint-nav-card:focus-visible {
+  transform: scale(1.045);
+  z-index: 10;
+  will-change: transform;
+}
+
+[data-input-mode='controller'] .checkpoint-nav-card:focus img,
+.checkpoint-nav-card:focus-visible img {
+  filter: brightness(1.08);
+}
+
+/* Shimmer loading animation */
+@keyframes checkpoint-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.checkpoint-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(34, 46, 64, 0.7) 25%,
+    rgba(43, 56, 75, 0.95) 50%,
+    rgba(34, 46, 64, 0.7) 75%
+  );
+  background-size: 200% 100%;
+  animation: checkpoint-shimmer 1.6s infinite linear;
+}
+
+/* Custom Atmospheric Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #151d2a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2b384b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4b63;
+}
+
+/* Date picker dark color-scheme polish */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.85) sepia(0.1) saturate(2) hue-rotate(180deg);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
