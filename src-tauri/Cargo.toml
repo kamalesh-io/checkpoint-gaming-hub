@@ -1,6 +1,6 @@
 [package]
 name = "checkpoint"
-version = "1.0.0"
+version = "1.0.1"
 description = "CHECKPOINT Gaming Hub — Local-First Desktop Client"
 authors = ["CHECKPOINT"]
 edition = "2021"

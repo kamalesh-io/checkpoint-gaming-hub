@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useMemo, useState, useEffect, type KeyboardEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Calendar,
@@ -7,9 +7,11 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Plus,
+  RotateCcw,
   ShoppingBag,
   Sparkles,
   Star,
+  WifiOff,
 } from 'lucide-react';
 import { GameArtwork } from '@/components/game/GameArtwork';
 import { Badge } from '@/components/ui/Badge';
@@ -21,8 +23,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { AddGameModal } from '@/features/modals/AddGameModal';
 import { useIgdbGameDetailsQuery, useIgdbSearchQuery } from '@/hooks/queries';
 import { useDebounce } from '@/hooks/useDebounce';
-import { buildGameDetailsRoute } from '@/routes/routes';
+import { buildGameDetailsRoute, ROUTES } from '@/routes/routes';
 import { CheckpointApiError } from '@/services/api';
+import { useAppStore } from '@/stores/appStore';
 import type { IGDBSearchResultItem, OwnershipStatus } from '@/types';
 import { cn } from '@/utils/cn';
 import { formatIgdbRating, formatReleaseYear } from '@/utils/format';
@@ -40,21 +43,32 @@ export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQuery = searchParams.get('q') ?? '';
 
-  const [inputQuery, setInputQuery] = useState(urlQuery);
+  const globalSearchQuery = useAppStore((s) => s.globalSearchQuery);
+  const setGlobalSearchQuery = useAppStore((s) => s.setGlobalSearchQuery);
+
+  const [inputQuery, setInputQuery] = useState(() => urlQuery || globalSearchQuery || '');
   const [selectedIgdbId, setSelectedIgdbId] = useState<number | null>(null);
   const [modalTarget, setModalTarget] = useState<{
     item: IGDBSearchResultItem;
     defaultOwnership: OwnershipStatus;
   } | null>(null);
 
-  // Synchronize external global titlebar ?q= changes cleanly without useEffect setState
+  // Synchronize external global titlebar ?q= changes cleanly
   const [lastSyncedUrlQ, setLastSyncedUrlQ] = useState(urlQuery);
   if (urlQuery !== lastSyncedUrlQ) {
     setLastSyncedUrlQ(urlQuery);
     setInputQuery(urlQuery);
+    setGlobalSearchQuery(urlQuery);
   }
 
-  const debouncedQuery = useDebounce(inputQuery, 400);
+  // If page opened with no ?q= but globalSearchQuery exists, initialize URL
+  useEffect(() => {
+    if (!urlQuery && globalSearchQuery.trim()) {
+      setSearchParams({ q: globalSearchQuery.trim() }, { replace: true });
+    }
+  }, [urlQuery, globalSearchQuery, setSearchParams]);
+
+  const debouncedQuery = useDebounce(inputQuery, 300);
   const searchQuery = useIgdbSearchQuery(debouncedQuery, 15);
   const results = useMemo(() => searchQuery.data?.data ?? [], [searchQuery.data]);
 
@@ -72,6 +86,7 @@ export function DiscoverPage() {
 
   const handleSearchChange = (value: string) => {
     setInputQuery(value);
+    setGlobalSearchQuery(value);
     if (value.trim()) {
       setSearchParams({ q: value }, { replace: true });
     } else {
@@ -107,6 +122,51 @@ export function DiscoverPage() {
         />
       );
     }
+
+    const isOfflineOrDns =
+      err instanceof CheckpointApiError &&
+      (err.code === 'DNS_RESOLUTION_FAILED' ||
+        err.code === 'OFFLINE_NO_INTERNET' ||
+        err.code === 'IGDB_SERVICE_UNREACHABLE' ||
+        err.code.includes('TIMEOUT') ||
+        err.message.includes('11001') ||
+        err.message.includes('getaddrinfo'));
+
+    if (isOfflineOrDns) {
+      return (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-outline/30 bg-surface/50 p-8 text-center max-w-xl mx-auto my-6 space-y-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/15 text-warning border border-warning/30">
+            <WifiOff className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="font-headline text-headline-sm text-on-surface">
+              Unable to reach IGDB catalog
+            </h3>
+            <p className="text-body-sm text-muted mt-1.5 leading-relaxed">
+              {err instanceof CheckpointApiError
+                ? err.message
+                : 'Unable to reach the IGDB catalog. Check your internet connection or DNS settings. Your local library remains fully accessible offline.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <Button
+              variant="secondary"
+              leftIcon={<RotateCcw className="h-4 w-4" />}
+              onClick={() => void searchQuery.refetch()}
+            >
+              Retry Search
+            </Button>
+            <Button
+              variant="accent"
+              onClick={() => navigate(ROUTES.LIBRARY)}
+            >
+              Browse Local Library
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <ErrorState
         title="Unable to search IGDB"

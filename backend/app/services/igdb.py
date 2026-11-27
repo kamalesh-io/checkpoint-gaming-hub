@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exceptions import ExternalApiException, RateLimitException
 from app.core.logging import logger
 from app.core.rate_limiter import APIRateLimiter
+from app.services.error_classifier import classify_external_network_error
 from app.services.game_matching import extract_steam_app_id_from_external_games, score_search_candidate
 from app.services.twitch_auth import twitch_auth_manager
 
@@ -80,10 +81,7 @@ class IGDBClient:
 
             except httpx.RequestError as exc:
                 logger.error(f"IGDB connection failure: {exc}")
-                raise ExternalApiException(
-                    message=f"Network error querying IGDB: {exc}",
-                    code="IGDB_NETWORK_ERROR",
-                )
+                raise classify_external_network_error(exc, service="IGDB")
 
     async def search_games(self, search_text: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Searches the IGDB catalog by title with intelligent base-game prioritization."""

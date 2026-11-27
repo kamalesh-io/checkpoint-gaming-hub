@@ -119,15 +119,25 @@ class CheckpointApiClient {
     this.initPromise = (async () => {
       if (isTauriRuntime()) {
         try {
-          const cfg = await invoke<TauriLocalApiConfig>('get_local_api_config');
-          if (cfg.baseUrl) {
+          const cfg = await invoke<TauriLocalApiConfig>('wait_for_backend_ready', { timeoutMs: 25000 });
+          if (cfg?.baseUrl) {
             this.baseUrl = cfg.baseUrl.replace(/\/+$/, '');
           }
-          if (cfg.token && !this.authToken) {
+          if (cfg?.token) {
             this.authToken = cfg.token;
           }
         } catch {
-          // Non-fatal fallback to environment config
+          try {
+            const cfg = await invoke<TauriLocalApiConfig>('get_local_api_config');
+            if (cfg?.baseUrl) {
+              this.baseUrl = cfg.baseUrl.replace(/\/+$/, '');
+            }
+            if (cfg?.token && !this.authToken) {
+              this.authToken = cfg.token;
+            }
+          } catch {
+            // Non-fatal fallback to environment config
+          }
         }
       }
     })();

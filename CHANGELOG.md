@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-11-27
+
+### Fixed
+* **Windows Application & Installer Branding (BUG-001 & BUG-002)**:
+  * Restored full multi-resolution Windows ICO assets (16x16 through 256x256) generated directly from the original Checkpoint emblem.
+  * Added custom dark-themed NSIS wizard banners (`header.bmp` and `sidebar.bmp`) matching CHECKPOINT V2 `#111722` aesthetic.
+  * Added dual-mode NSIS installation support allowing user selection between *All Users* (`C:\Program Files\CHECKPOINT Gaming Hub`) and *Current User* (`%LOCALAPPDATA%\Programs\CHECKPOINT Gaming Hub`).
+  * Updated display name to `CHECKPOINT Gaming Hub` and configured publisher metadata to `CHECKPOINT`.
+  * Verified persistent roaming user database and DPAPI credentials in `%APPDATA%\Checkpoint\` are never deleted during application upgrades or uninstallations.
+* **Sidecar Startup Race Condition & Readiness Handshake (BUG-003)**:
+  * Implemented `wait_for_backend_ready` in Rust IPC with a 25-second timeout, preventing premature frontend requests before port binding and HMAC proof verification complete.
+  * Updated `apiClient.initializeSession()` to synchronously await backend readiness before initiating health queries.
+  * Extended `useHealthQuery` to retry up to 15 times with 1–3s backoff during startup.
+  * Guarded `BackendGate` to maintain `<StartupScreen />` throughout initial startup, eliminating premature "Local CHECKPOINT Backend Offline" warnings.
+* **External Network & DNS Error Handling (BUG-004)**:
+  * Implemented `classify_external_network_error()` in `error_classifier.py` mapping raw socket/Winsock errors (such as `[Errno 11001] getaddrinfo failed`) to structured `DNS_RESOLUTION_FAILED` and `OFFLINE_NO_INTERNET` codes.
+  * Enhanced Discover page with a dedicated offline state banner with plain-language error guidance, a "Retry Search" button, and a "Browse Local Library" shortcut.
+* **Title Bar Autocomplete & Discover Synchronization (BUG-005)**:
+  * Created `GlobalSearchAutocomplete.tsx` featuring a Steam-style floating autocomplete dropdown with 300ms debouncing, minimum 2-character threshold, and top 8 matching titles with 2:3 thumbnails, release year, IGDB rating, and "In Library" status badge.
+  * Implemented full keyboard navigation (ArrowUp, ArrowDown, Escape to dismiss, Enter to select).
+  * Built seamless two-way state synchronization between `useAppStore.globalSearchQuery` and `DiscoverPage.tsx`.
+
 ## [1.0.0] - 2026-11-26
 
 ### Added

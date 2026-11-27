@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CHECKPOINT",
-  "version": "1.0.0",
+  "productName": "CHECKPOINT Gaming Hub",
+  "version": "1.0.1",
   "identifier": "com.checkpoint.gaminghub",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -39,12 +39,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "publisher": "CHECKPOINT",
+    "copyright": "Copyright © 2026 CHECKPOINT. All rights reserved.",
     "externalBin": [
       "binaries/checkpoint-backend"
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "both",
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/header.bmp",
+        "sidebarImage": "icons/sidebar.bmp"
       }
     }
   }

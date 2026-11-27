@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = "CHECKPOINT Gaming Hub"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "1.0.1"
     APP_ENV: str = "development"  # development, testing, production
     HOST: str = "127.0.0.1"
     PORT: int = 8765

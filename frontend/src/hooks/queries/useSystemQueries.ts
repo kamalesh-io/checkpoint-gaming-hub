@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { CheckpointApiError } from '@/services/api';
+import { apiClient, CheckpointApiError } from '@/services/api';
 import { systemApi } from '@/services/systemApi';
 import { queryKeys } from './queryKeys';
 
@@ -7,14 +7,18 @@ function shouldRetrySystemQuery(failureCount: number, error: unknown): boolean {
   if (error instanceof CheckpointApiError && (error.isAuthError || error.status === 422)) {
     return false;
   }
-  return failureCount < 1;
+  return failureCount < 15;
 }
 
 export function useHealthQuery() {
   return useQuery({
     queryKey: queryKeys.system.health,
-    queryFn: ({ signal }) => systemApi.checkHealth(signal),
+    queryFn: async ({ signal }) => {
+      await apiClient.initializeSession();
+      return systemApi.checkHealth(signal);
+    },
     retry: shouldRetrySystemQuery,
+    retryDelay: (attemptIndex) => Math.min(1000 * (attemptIndex + 1), 3000),
     refetchInterval: 30_000,
     staleTime: 10_000,
   });

@@ -1,7 +1,7 @@
 {
   "name": "checkpoint-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "CHECKPOINT Gaming Hub - Local-First Desktop Client",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/frontend_core.test.ts tests/controller_spatial.test.ts",
+    "test": "node --experimental-strip-types --test tests/frontend_core.test.ts tests/controller_spatial.test.ts tests/autocomplete_dropdown.test.ts",
     "typecheck": "tsc -b --noEmit",
     "tauri": "tauri",
     "tauri:dev": "cd .. && .\\frontend\\node_modules\\.bin\\tauri.cmd dev",

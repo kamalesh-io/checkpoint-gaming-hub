@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
-import { SearchInput } from '@/components/ui/SearchInput';
+import { GlobalSearchAutocomplete } from '@/components/layout/GlobalSearchAutocomplete';
 import { ROUTES } from '@/routes/routes';
 import { isTauriRuntime } from '@/services/api';
 import { useAppStore } from '@/stores/appStore';
@@ -79,9 +79,8 @@ export function TitleBar({ backendOnline = true, onQuickAddGame }: TitleBarProps
     };
   }, [inTauri, setFullscreen]);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    const trimmed = globalSearchQuery.trim();
+  const handleSearchSubmit = (finalQuery: string) => {
+    const trimmed = finalQuery.trim();
     if (!trimmed) {
       navigate(ROUTES.DISCOVER);
       return;
@@ -168,18 +167,15 @@ export function TitleBar({ backendOnline = true, onQuickAddGame }: TitleBarProps
         </span>
       </div>
 
-      {/* Center: Global IGDB/Library Quick Search */}
-      <form onSubmit={handleSubmit} className="flex-1 max-w-md min-w-[180px]">
-        <SearchInput
-          ref={searchRef}
-          value={globalSearchQuery}
-          onValueChange={setGlobalSearchQuery}
-          placeholder="Search IGDB or jump to Discover..."
-          shortcutHint="Ctrl+K"
-          aria-label="Global game search"
-          className="h-9 bg-background/70"
+      {/* Center: Global IGDB/Library Quick Search with Steam-style Autocomplete */}
+      <div className="flex-1 max-w-md min-w-[180px]">
+        <GlobalSearchAutocomplete
+          searchRef={searchRef}
+          query={globalSearchQuery}
+          onQueryChange={setGlobalSearchQuery}
+          onSubmit={handleSearchSubmit}
         />
-      </form>
+      </div>
 
       {/* Right: Quick Add & Native Tauri Window Controls */}
       <div className="flex items-center gap-2 shrink-0" data-tauri-drag-region>

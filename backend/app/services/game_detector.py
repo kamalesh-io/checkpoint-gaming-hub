@@ -51,6 +51,9 @@ EXCLUDED_PROCESS_NAMES: Set[str] = {
     "cmd.exe",
     "powershell.exe",
     "checkpoint.exe",
+    "checkpoint gaming hub.exe",
+    "checkpoint_gaming_hub.exe",
+    "checkpoint-backend.exe",
     "checkpoint-backend-x86_64-pc-windows-msvc.exe",
 }
 

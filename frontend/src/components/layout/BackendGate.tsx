@@ -80,18 +80,25 @@ export function BackendGate({
     authStatusQuery.error instanceof CheckpointApiError &&
     authStatusQuery.error.isAuthError;
 
+  const isConnecting =
+    healthQuery.isLoading ||
+    (healthQuery.isFetching && !healthQuery.data) ||
+    (healthOk && authStatusQuery.isLoading);
+
   const isUnavailable =
-    healthQuery.isError ||
-    (authStatusQuery.isError && !isAuthError &&
-      authStatusQuery.error instanceof CheckpointApiError &&
-      authStatusQuery.error.isNetworkError);
+    !isConnecting &&
+    (healthQuery.isError ||
+      (authStatusQuery.isError &&
+        !isAuthError &&
+        authStatusQuery.error instanceof CheckpointApiError &&
+        authStatusQuery.error.isNetworkError));
 
   const connectionState: BackendConnectionState = isAuthError
     ? 'invalid_auth'
-    : isUnavailable
-      ? 'unavailable'
-      : healthQuery.isLoading || (healthOk && authStatusQuery.isLoading)
-        ? 'connecting'
+    : isConnecting
+      ? 'connecting'
+      : isUnavailable
+        ? 'unavailable'
         : integrationsQuery.data &&
             (!integrationsQuery.data.igdb_connected ||
               !integrationsQuery.data.steamgriddb_connected)

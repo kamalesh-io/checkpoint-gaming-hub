@@ -6,6 +6,7 @@ import httpx
 from app.core.config import settings
 from app.core.exceptions import AuthenticationException, ExternalApiException
 from app.core.logging import logger
+from app.services.error_classifier import classify_external_network_error
 
 TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 
@@ -76,10 +77,7 @@ class TwitchAuthManager:
 
             except httpx.RequestError as exc:
                 logger.error(f"Network error during Twitch token request: {exc}")
-                raise ExternalApiException(
-                    message=f"Network error connecting to Twitch auth: {exc}",
-                    code="TWITCH_NETWORK_ERROR",
-                )
+                raise classify_external_network_error(exc, service="Twitch Authentication")
 
 
 twitch_auth_manager = TwitchAuthManager()

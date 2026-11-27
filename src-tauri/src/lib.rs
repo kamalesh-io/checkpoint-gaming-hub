@@ -4,6 +4,7 @@ mod process_manager;
 
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::State;
 
 use gamepad::{spawn_native_gamepad_thread, NativeGamepadSnapshot, NativeGamepadState, SharedGamepadState};
@@ -22,6 +23,38 @@ fn get_local_api_config(state: State<'_, SharedBackendState>) -> LocalApiConfig 
             base_url: "http://127.0.0.1:8765/api/v1".to_string(),
             token: None,
         }
+    }
+}
+
+#[tauri::command]
+fn wait_for_backend_ready(
+    timeout_ms: Option<u64>,
+    state: State<'_, SharedBackendState>,
+) -> Result<LocalApiConfig, String> {
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(25_000));
+    let start = Instant::now();
+    loop {
+        {
+            let lock = state.lock().map_err(|e| e.to_string())?;
+            match lock.status {
+                BackendStatus::Ready => {
+                    return Ok(LocalApiConfig {
+                        base_url: lock.base_url.clone(),
+                        token: Some(lock.token.clone()),
+                    });
+                }
+                BackendStatus::Error => {
+                    return Err(lock.error_message.clone().unwrap_or_else(|| "Failed to start backend".to_string()));
+                }
+                BackendStatus::Initializing => {
+                    // Continue waiting
+                }
+            }
+        }
+        if start.elapsed() >= timeout {
+            return Err("Timed out waiting for CHECKPOINT backend service to become ready".to_string());
+        }
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -104,6 +137,7 @@ pub fn run() {
         .manage(gamepad_state)
         .invoke_handler(tauri::generate_handler![
             get_local_api_config,
+            wait_for_backend_ready,
             get_backend_status,
             restart_backend,
             get_native_gamepads,
