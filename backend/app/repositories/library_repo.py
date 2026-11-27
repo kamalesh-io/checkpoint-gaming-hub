@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from app.models.artwork import GameArtwork
 from app.models.game import Game, Genre, game_genres
-from app.models.library import LibraryEntry, PlayingStatus
+from app.models.library import LibraryEntry, OwnershipStatus, PlayingStatus
 
 
 class LibraryRepository:
@@ -68,6 +68,9 @@ class LibraryRepository:
             base_query = base_query.where(LibraryEntry.playing_status == status)
         if ownership_status and ownership_status.lower() != "all":
             base_query = base_query.where(LibraryEntry.ownership_status == ownership_status)
+        elif not ownership_status or ownership_status.lower() == "all":
+            # Default library query decouples Wishlist: excludes "To Buy" entries unless explicitly queried
+            base_query = base_query.where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
         if platform and platform.lower() != "all":
             base_query = base_query.where(LibraryEntry.platform == platform)
         if priority and priority.lower() != "all":
@@ -144,35 +147,45 @@ class LibraryRepository:
         return result.rowcount > 0
 
     async def get_system_stats(self) -> Dict[str, Any]:
-        """Computes summary statistics across user's library."""
+        """Computes summary statistics across user's library, excluding unowned wishlist entries."""
         # Total and completed
-        total_stmt = select(func.count(LibraryEntry.id))
+        total_stmt = select(func.count(LibraryEntry.id)).where(
+            LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value
+        )
         total_res = await self.session.execute(total_stmt)
         total_games = total_res.scalar_one()
 
         completed_stmt = select(func.count(LibraryEntry.id)).where(
+            LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value,
             or_(
                 LibraryEntry.playing_status == PlayingStatus.COMPLETED.value,
                 LibraryEntry.playing_status == PlayingStatus.ONE_HUNDRED_PERCENT.value,
-            )
+            ),
         )
         comp_res = await self.session.execute(completed_stmt)
         completed_games = comp_res.scalar_one()
 
         # Total hours
-        hours_stmt = select(func.sum(LibraryEntry.hours_played))
+        hours_stmt = select(func.sum(LibraryEntry.hours_played)).where(
+            LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value
+        )
         hours_res = await self.session.execute(hours_stmt)
         total_hours = hours_res.scalar_one() or 0.0
 
         # Backlog count
         backlog_stmt = select(func.count(LibraryEntry.id)).where(
-            LibraryEntry.playing_status == PlayingStatus.PLANNED.value
+            LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value,
+            LibraryEntry.playing_status == PlayingStatus.PLANNED.value,
         )
         backlog_res = await self.session.execute(backlog_stmt)
         backlog_count = backlog_res.scalar_one()
 
         # Games by platform
-        plat_stmt = select(LibraryEntry.platform, func.count(LibraryEntry.id)).group_by(LibraryEntry.platform)
+        plat_stmt = (
+            select(LibraryEntry.platform, func.count(LibraryEntry.id))
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
+            .group_by(LibraryEntry.platform)
+        )
         plat_res = await self.session.execute(plat_stmt)
         games_by_platform = {row[0]: row[1] for row in plat_res.all()}
 
@@ -182,6 +195,7 @@ class LibraryRepository:
             .join(game_genres, Genre.id == game_genres.c.genre_id)
             .join(Game, game_genres.c.game_id == Game.id)
             .join(LibraryEntry, Game.id == LibraryEntry.game_id)
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
             .group_by(Genre.name)
             .order_by(func.sum(LibraryEntry.hours_played).desc())
             .limit(5)

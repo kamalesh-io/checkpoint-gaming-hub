@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthenticatedImage } from '@/hooks/useAuthenticatedImage';
 import { useGameThemeSync } from '@/hooks/useGameThemeSync';
 import { useAppStore } from '@/stores/appStore';
@@ -15,7 +15,7 @@ export interface CinematicBackdropProps {
 
 /**
  * Shared atmospheric game backdrop engine for both Desktop Hero and Big Picture Mode.
- * Preloads incoming artwork over the previous settled frame before crossfading (600ms)
+ * Preloads incoming artwork over the previous settled frame before crossfading (650ms)
  * to prevent flashes-to-black and synchronizes dynamic CSS accent variables.
  */
 export function CinematicBackdrop({
@@ -39,6 +39,15 @@ export function CinematicBackdrop({
 
   const [settledBg, setSettledBg] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!resolvedSrc) return;
+    const img = new Image();
+    img.src = resolvedSrc;
+    if (img.complete) {
+      setSettledBg(resolvedSrc);
+    }
+  }, [resolvedSrc]);
+
   return (
     <div className={cn('pointer-events-none absolute inset-0 overflow-hidden', className)}>
       {/* Previous settled frame stays visible until incoming artwork finishes decoding */}
@@ -61,7 +70,7 @@ export function CinematicBackdrop({
           onLoad={() => setSettledBg(resolvedSrc)}
           className={cn(
             'absolute inset-0 h-full w-full object-cover object-center',
-            settledBg === resolvedSrc ? 'opacity-100' : 'opacity-0',
+            settledBg === resolvedSrc || !settledBg ? 'opacity-100' : 'opacity-0',
             !reducedMotion &&
               'transition-opacity duration-[650ms] ease-hero-transition scale-[1.02]',
           )}

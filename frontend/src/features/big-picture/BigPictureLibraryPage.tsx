@@ -51,7 +51,10 @@ export function BigPictureLibraryPage() {
   const [quickActionTarget, setQuickActionTarget] = useState<LibraryEntryRead | null>(null);
   const [progressTarget, setProgressTarget] = useState<LibraryEntryRead | null>(null);
 
-  const allEntries = useMemo(() => libraryQuery.data?.data ?? [], [libraryQuery.data]);
+  const allEntries = useMemo(
+    () => (libraryQuery.data?.data ?? []).filter((e) => e.ownership_status !== 'To Buy'),
+    [libraryQuery.data],
+  );
 
   const filteredEntries = useMemo(() => {
     const matched = allEntries.filter((entry) => {

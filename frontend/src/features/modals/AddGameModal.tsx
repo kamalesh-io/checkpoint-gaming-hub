@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, Calendar, Check, ExternalLink, Plus, Star } from 'lucide-react';
+import { AlertTriangle, Calendar, Check, ExternalLink, Plus, SlidersHorizontal, Star, X } from 'lucide-react';
 import { GameArtwork } from '@/components/game/GameArtwork';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -79,6 +79,8 @@ function AddGameForm({
   const [platform, setPlatform] = useState<string>(() => inferDefaultPlatform(resolvedPlatforms));
   const [priority, setPriority] = useState<PriorityLevel>('Medium');
   const [completionGoal, setCompletionGoal] = useState<string>('Main Story');
+  const [progressPct, setProgressPct] = useState<number>(0);
+  const [ratingValue, setRatingValue] = useState<string>('');
   const [plannedStartDate, setPlannedStartDate] = useState<string>('');
   const [targetCompletionDate, setTargetCompletionDate] = useState<string>('');
   const [customTags, setCustomTags] = useState<string>('');
@@ -108,6 +110,14 @@ function AddGameForm({
       return;
     }
 
+    let parsedRating: number | null = null;
+    if (ratingValue.trim() !== '') {
+      const n = Number(ratingValue.trim());
+      if (Number.isFinite(n) && n >= 0 && n <= 10) {
+        parsedRating = Math.round(n * 10) / 10;
+      }
+    }
+
     try {
       onPendingChange(true);
       const created = await addMutation.mutateAsync({
@@ -117,6 +127,8 @@ function AddGameForm({
         platform,
         priority,
         completion_goal: completionGoal,
+        progress_pct: Math.round(progressPct),
+        personal_rating: parsedRating,
         planned_start_date: plannedStartDate || null,
         target_completion_date: targetCompletionDate || null,
         custom_tags: customTags.trim(),
@@ -251,6 +263,55 @@ function AddGameForm({
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Completion Progress & Personal Rating */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label htmlFor="add-progress-input" className="text-label-sm text-muted font-medium flex items-center gap-1.5">
+                <SlidersHorizontal className="h-3.5 w-3.5 text-accent-active" />
+                <span>Completion Progress</span>
+              </label>
+              <span className="tabular-nums text-[12px] font-semibold text-accent-active">{Math.round(progressPct)}%</span>
+            </div>
+            <input
+              id="add-progress-input"
+              data-nav-item="true"
+              type="range"
+              min={0}
+              max={100}
+              value={progressPct}
+              onChange={(e) => setProgressPct(Number(e.target.value))}
+              className="w-full accent-[var(--accent-active)] cursor-pointer"
+            />
+          </div>
+
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label="Personal Rating (0 – 10, optional)"
+                type="number"
+                min={0}
+                max={10}
+                step={0.5}
+                value={ratingValue}
+                onChange={(e) => setRatingValue(e.target.value)}
+                leftAdornment={<Star className="h-4 w-4 text-accent-gold" />}
+                placeholder="Unrated"
+              />
+            </div>
+            {ratingValue !== '' && (
+              <Button
+                variant="ghost"
+                size="md"
+                leftIcon={<X className="h-3.5 w-3.5" />}
+                onClick={() => setRatingValue('')}
+              >
+                Clear
+              </Button>
+            )}
           </div>
         </div>
 

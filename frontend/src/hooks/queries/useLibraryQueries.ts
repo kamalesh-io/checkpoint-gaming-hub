@@ -59,6 +59,8 @@ export function useUpdateGameMutation() {
       queryClient.setQueryData(queryKeys.library.detail(updated.id), updated);
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.backlog.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
     },
   });
 }

@@ -8,7 +8,7 @@ import { ToastViewport } from '@/components/ui/ToastViewport';
 import { FirstRunOnboardingModal } from '@/features/onboarding/FirstRunOnboardingModal';
 import { ActiveSessionHUD } from '@/features/sessions/ActiveSessionHUD';
 import { ActiveSessionRecoveryModal } from '@/features/sessions/ActiveSessionRecoveryModal';
-import { useHealthQuery, useLibraryQuery } from '@/hooks/queries';
+import { useHealthQuery, useLibraryQuery, useWishlistQuery } from '@/hooks/queries';
 import { ROUTES } from '@/routes/routes';
 import { apiClient, isTauriRuntime } from '@/services/api';
 import { useAppStore } from '@/stores/appStore';
@@ -22,11 +22,16 @@ export function RootLayout() {
   const backendOnline = Boolean(healthQuery.data && !healthQuery.isError);
 
   const libraryQuery = useLibraryQuery({ limit: 100 }, backendOnline);
-  const allEntries = libraryQuery.data?.data ?? [];
+  const dedicatedWishlistQuery = useWishlistQuery({}, backendOnline);
+  const legacyWishlistQuery = useLibraryQuery(
+    { ownership_status: 'To Buy', limit: 100 },
+    backendOnline,
+  );
+
   const libraryCount = libraryQuery.data?.meta.total;
-  const wishlistCount = allEntries.filter(
-    (entry) => entry.ownership_status === 'To Buy',
-  ).length;
+  const wishlistCount =
+    (dedicatedWishlistQuery.data?.length ?? 0) +
+    (legacyWishlistQuery.data?.data?.length ?? 0);
 
   useEffect(() => {
     void apiClient.initializeSession();

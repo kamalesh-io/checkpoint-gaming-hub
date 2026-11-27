@@ -378,7 +378,7 @@ export function WishlistPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-outline/50">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-outline/50">
                     <Button
                       data-nav-item="true"
                       size="sm"
@@ -387,6 +387,32 @@ export function WishlistPage() {
                     >
                       <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                       Mark Purchased
+                    </Button>
+                    <Button
+                      data-nav-item="true"
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        try {
+                          await convertMutation.mutateAsync({
+                            id: item.id,
+                            payload: {
+                              ownership_status: 'Owned',
+                              playing_status: 'Planned',
+                              platform: item.store_preference || 'Steam',
+                            },
+                          });
+                          addToast({
+                            tone: 'success',
+                            title: 'Moved to Backlog',
+                            message: `"${item.game.title}" marked as Owned and queued in Backlog.`,
+                          });
+                        } catch {
+                          addToast({ tone: 'error', title: 'Action Failed', message: 'Could not move to backlog.' });
+                        }
+                      }}
+                    >
+                      Move to Backlog
                     </Button>
                   </div>
                 </div>
@@ -444,7 +470,7 @@ export function WishlistPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-outline/50">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-outline/50">
                   <Button
                     data-nav-item="true"
                     size="sm"
@@ -452,7 +478,29 @@ export function WishlistPage() {
                     onClick={() => void handleLegacyMarkOwned(entry)}
                   >
                     <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                    Mark Owned
+                    Mark Purchased
+                  </Button>
+                  <Button
+                    data-nav-item="true"
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        await updateLibraryMutation.mutateAsync({
+                          entryId: entry.id,
+                          updates: { ownership_status: 'Owned', playing_status: 'Planned' },
+                        });
+                        addToast({
+                          tone: 'success',
+                          title: 'Moved to Backlog',
+                          message: `"${entry.game.title}" marked as Owned and queued in Backlog.`,
+                        });
+                      } catch {
+                        addToast({ tone: 'error', title: 'Action Failed', message: 'Could not move to backlog.' });
+                      }
+                    }}
+                  >
+                    Move to Backlog
                   </Button>
                   <Button
                     data-nav-item="true"
@@ -462,6 +510,25 @@ export function WishlistPage() {
                   >
                     Details
                   </Button>
+                  <IconButton
+                    label={`Remove ${entry.game.title} from Wishlist`}
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      try {
+                        await removeLibraryMutation.mutateAsync(entry.id);
+                        addToast({
+                          tone: 'neutral',
+                          title: 'Removed from Wishlist',
+                          message: `"${entry.game.title}" removed.`,
+                        });
+                      } catch {
+                        addToast({ tone: 'error', title: 'Action Failed', message: 'Could not remove item.' });
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </IconButton>
                 </div>
               </div>
             </div>

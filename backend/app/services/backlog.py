@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import EntityNotFoundException, ValidationException
 from app.models.game import Game
-from app.models.library import LibraryEntry, PlayingStatus
+from app.models.library import LibraryEntry, OwnershipStatus, PlayingStatus
 from app.schemas.backlog import BacklogReorderItem, BacklogSummaryResponse
 from app.schemas.library import LibraryEntryRead
 from app.services.library import LibraryService
@@ -44,6 +44,8 @@ class BacklogService:
 
         if ownership_filter and ownership_filter.lower() != "all":
             stmt = stmt.where(LibraryEntry.ownership_status == ownership_filter)
+        elif not ownership_filter or ownership_filter.lower() == "all":
+            stmt = stmt.where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
 
         if search:
             term = f"%{search.strip()}%"

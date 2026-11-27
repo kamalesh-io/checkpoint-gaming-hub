@@ -22,6 +22,11 @@ This release resolves five specific issues discovered during real-world Windows 
 | **BUG-008** | High | Game Launcher / IPC | Quoted executable paths failed path validation; no native GUI file picker. | **Resolved** |
 | **BUG-009** | High | SteamGridDB Artwork | CDN domain validation rejected valid image hosts and dropped CORS headers on error. | **Resolved** |
 | **BUG-010** | High | Steam Library Synchronization | Sequential O(N) IGDB queries during preview scan caused frontend request timeout. | **Resolved** |
+| **BUG-011** | High | Dashboard / Overview | Currently Playing carousel missing or conditionally hidden when no games playing. | **Resolved** |
+| **BUG-012** | High | Theming & Cinematic Backdrop | Image onload race condition caused black backdrops; missing franchise accent mappings. | **Resolved** |
+| **BUG-013** | High | Game Details & Modals | Add Game and Game Details lacked interactive progress slider and nullable rating controls. | **Resolved** |
+| **BUG-014** | High | Active Sessions & HUD | Live session timer double-counted seconds on query refetches; stats did not refresh. | **Resolved** |
+| **BUG-015** | High | Library & Wishlist | Wishlist ("To Buy") games appeared in active Library and contaminated stats. | **Resolved** |
 
 ---
 
@@ -121,14 +126,55 @@ This release resolves five specific issues discovered during real-world Windows 
   4. Automatically attaches high-resolution Steam capsule artwork to `GameArtwork` during library imports.
   5. Increased frontend preview and import API timeouts to 60s in `steamApi.ts`.
 
+### BUG-011 — Currently Playing Carousel Missing on Overview Dashboard
+* **Problem Statement:** Overview Dashboard did not display the expected Currently Playing carousel; if no games were marked as playing, the section disappeared completely.
+* **Root Cause:** `OverviewPage.tsx` conditionally rendered the entire shelf with `currentlyPlaying.length > 0 && (...)`, giving no visual indication or controls to users.
+* **Resolution:**
+  1. Unconditionally rendered the Currently Playing shelf conforming to Stitch design `node_7560982411466141303`.
+  2. Added Previous / Next circular stepping controls and keyboard Arrow navigation.
+  3. Added dynamic spotlight selection that updates the main cinematic backdrop and hero title when clicking carousel cards.
+  4. Added an atmospheric empty state card when zero games are marked as playing.
+
+### BUG-012 — Dynamic Background and Accent Switching Not Working
+* **Problem Statement:** Background backdrops often failed to transition, remaining at pitch black (`opacity-0`), and signature franchises lacked distinctive dynamic accent styling.
+* **Root Cause:** Browser image `onLoad` did not trigger reliably for already-cached or pre-decoded image URLs, leaving `settledBg` unset. Signature franchise titles were not mapped in the theme resolver.
+* **Resolution:**
+  1. Added `img.complete` inspection in `CinematicBackdrop.tsx` for immediate background transition without waiting for dropped `onLoad` events.
+  2. Fallback to full opacity immediately when changing hero backgrounds.
+  3. Expanded `resolveKnownGameAccent` in `theme.ts` and `library.py` with verified hex tokens: Elden Ring (`#E0B45A`), Metro Exodus (`#F09B4B`), Watch Dogs (`#5BA8FF`), Cyberpunk 2077 (`#F5DF4D`), God of War, Hades, Witcher, Spider-Man.
+
+### BUG-013 — Cannot Update Game Progress and Personal Rating
+* **Problem Statement:** Users could not set or update campaign progress percentage or personal rating (0–10) in `AddGameModal` or `GameDetailsPage`, and clearing ratings was impossible.
+* **Root Cause:** `AddGameModal.tsx` lacked input fields for progress and rating; `GameDetailsPage.tsx` sidebar lacked progress controls; mutations did not invalidate system statistics queries.
+* **Resolution:**
+  1. Added Campaign Completion Progress slider (0–100%) and numeric input with quick presets (0%, 25%, 50%, 75%, 100%) in `AddGameModal`, `GameDetailsPage`, and `UpdateProgressModal`.
+  2. Added nullable Personal Rating (0–10) with an explicit "Clear Rating" action.
+  3. Updated query invalidation in `useUpdateGameMutation` to refresh `queryKeys.system.stats`, `queryKeys.backlog.all`, and `queryKeys.stats.all`.
+
+### BUG-014 — Playtime Tracking Features Not Working
+* **Problem Statement:** Active session HUD timer showed inaccurate increments or jumped on query refetches; session edits and deletions did not update total playtime immediately.
+* **Root Cause:** `ActiveSessionHUD.tsx` used a naive interval increment without resetting the delta on server refetches, causing double-counting; mutations did not invalidate system stats.
+* **Resolution:**
+  1. Replaced incremental ticker with timestamp delta `Date.now() - fetchedAt` in `ActiveSessionHUD.tsx`.
+  2. Decoupled lifetime Steam imported playtime from local session history.
+  3. Added `queryKeys.system.stats` invalidation to session mutations (`endActiveSession`, `logManualSession`, `updateSessionHistory`, `deleteSessionHistory`).
+
+### BUG-015 — Wishlist Games Incorrectly Appear in My Library
+* **Problem Statement:** Games marked as "To Buy" or wishlisted incorrectly appeared in My Library and Big Picture Library, skewing library counts and completion statistics.
+* **Root Cause:** `LibraryRepository.list_entries` returned all entries by default without filtering out `ownership_status == "To Buy"`.
+* **Resolution:**
+  1. Filtered out `ownership_status == "To Buy"` by default in `LibraryRepository.list_entries`, `get_system_stats()`, `get_analytics()`, and backlog services.
+  2. Added defensive filtering in `MyLibraryPage.tsx`, `BigPictureLibraryPage.tsx`, and `OverviewPage.tsx`.
+  3. Provided "Mark Purchased" and "Move to Backlog" buttons in `WishlistPage.tsx` for seamless game acquisition workflow.
+
 ---
 
 ## 3. Verification & Test Evidence
 
 | Suite | Component | Scope | Tests Run | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations, detector, launcher | 36 tests | **36 / 36 Passed** |
-| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete, datepicker | 18 tests | **18 / 18 Passed** |
+| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations, detector, launcher, wishlist decoupling, rating | 37 tests | **37 / 37 Passed** |
+| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete, datepicker, batch 03 unit tests | 23 tests | **23 / 23 Passed** |
 | **Desktop Shell** | Rust / Tauri 2.0 | HMAC-SHA256 handshake, token generator, sidecar binary, app id | 4 tests | **4 / 4 Passed** |
 | **Typecheck** | TypeScript | `tsc -b --noEmit` across all components and features | Whole repo | **0 Errors** |
 | **Linter** | ESLint / React Hooks | Code quality and hook dependency verification | Whole repo | **0 Warnings** |

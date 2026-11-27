@@ -47,16 +47,61 @@ export function resolveKnownGameAccent(
     if (preset) return preset;
   }
   const t = (title || '').toLowerCase();
-  if (t.includes('elden ring') || t.includes('dark souls') || t.includes('witcher')) {
+  if (
+    t.includes('elden ring') ||
+    t.includes('dark souls') ||
+    t.includes("demon's souls") ||
+    t.includes('souls') ||
+    t.includes('witcher') ||
+    t.includes('zelda') ||
+    t.includes('sekiro') ||
+    t.includes('final fantasy')
+  ) {
     return KNOWN_ACCENT_PALETTES['accent-gold'] ?? KNOWN_ACCENT_PALETTES.primary!;
   }
-  if (t.includes('metro') || t.includes('fallout') || t.includes('stalker') || t.includes('doom')) {
+  if (
+    t.includes('metro') ||
+    t.includes('fallout') ||
+    t.includes('stalker') ||
+    t.includes('s.t.a.l.k.e.r.') ||
+    t.includes('doom') ||
+    t.includes('god of war') ||
+    t.includes('hades') ||
+    t.includes('red dead') ||
+    t.includes('rdr') ||
+    t.includes('horizon') ||
+    t.includes('resident evil') ||
+    t.includes('dead space')
+  ) {
     return KNOWN_ACCENT_PALETTES['accent-amber'] ?? KNOWN_ACCENT_PALETTES.primary!;
   }
-  if (t.includes('watch dogs') || t.includes('watch_dogs') || t.includes('deus ex') || t.includes('death stranding')) {
+  if (
+    t.includes('watch dogs') ||
+    t.includes('watch_dogs') ||
+    t.includes('deus ex') ||
+    t.includes('death stranding') ||
+    t.includes('spider-man') ||
+    t.includes('spiderman') ||
+    t.includes('batman') ||
+    t.includes('halo') ||
+    t.includes('control') ||
+    t.includes('destiny') ||
+    t.includes('portal') ||
+    t.includes('half-life')
+  ) {
     return KNOWN_ACCENT_PALETTES['accent-blue'] ?? KNOWN_ACCENT_PALETTES.primary!;
   }
-  if (t.includes('cyberpunk') || t.includes('phantom liberty')) {
+  if (
+    t.includes('cyberpunk') ||
+    t.includes('phantom liberty') ||
+    t.includes('neon') ||
+    t.includes('borderlands') ||
+    t.includes("mirror's edge") ||
+    t.includes('persona') ||
+    t.includes('last of us') ||
+    t.includes('ghost of tsushima') ||
+    t.includes('starfield')
+  ) {
     return KNOWN_ACCENT_PALETTES['accent-yellow'] ?? KNOWN_ACCENT_PALETTES.primary!;
   }
   return null;

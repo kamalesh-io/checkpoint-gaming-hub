@@ -44,7 +44,7 @@ export function LandscapeGameCard({
         'group relative w-[290px] sm:w-[320px] shrink-0 overflow-hidden rounded-xl border text-left cursor-pointer checkpoint-nav-card',
         'transition-all duration-card-hover ease-card-hover bg-secondary-background',
         isActive
-          ? 'border-accent-active checkpoint-accent-glow -translate-y-0.5'
+          ? 'border-accent-active ring-2 ring-accent-active shadow-2xl checkpoint-accent-glow -translate-y-0.5'
           : 'border-outline/70 hover:border-outline hover:-translate-y-0.5 shadow-card',
         className,
       )}
@@ -63,9 +63,17 @@ export function LandscapeGameCard({
 
         {/* Top badges */}
         <div className="absolute inset-x-3 top-2.5 flex items-center justify-between gap-2">
-          <span className="rounded-md bg-background/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-medium text-on-surface border border-outline/60">
-            {entry.platform}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-md bg-background/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-medium text-on-surface border border-outline/60">
+              {entry.platform}
+            </span>
+            {isActive && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-accent-active/20 border border-accent-active/60 px-2 py-0.5 text-[11px] font-semibold text-accent-active backdrop-blur-md">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent-active animate-pulse" />
+                Active
+              </span>
+            )}
+          </div>
           {onOpenDetails && (
             <button
               type="button"
@@ -90,7 +98,12 @@ export function LandscapeGameCard({
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
-            <h3 className="font-headline text-headline-sm text-on-background truncate group-hover:text-accent-active transition-colors">
+            <h3
+              className={cn(
+                'font-headline text-headline-sm truncate transition-colors',
+                isActive ? 'text-accent-active' : 'text-on-background group-hover:text-accent-active',
+              )}
+            >
               {entry.game.title}
             </h3>
             <span className="tabular-nums text-[12px] font-medium text-muted shrink-0">

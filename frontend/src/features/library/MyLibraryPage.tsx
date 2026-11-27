@@ -96,7 +96,10 @@ export function MyLibraryPage() {
   const updateMutation = useUpdateGameMutation();
   const removeMutation = useRemoveGameMutation();
 
-  const allEntries = useMemo(() => libraryQuery.data?.data ?? [], [libraryQuery.data]);
+  const allEntries = useMemo(
+    () => (libraryQuery.data?.data ?? []).filter((e) => e.ownership_status !== 'To Buy'),
+    [libraryQuery.data],
+  );
 
   const availableGenres = useMemo(() => {
     const names = new Set<string>();

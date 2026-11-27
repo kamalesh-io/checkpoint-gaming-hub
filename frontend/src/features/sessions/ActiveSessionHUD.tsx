@@ -28,22 +28,32 @@ export function ActiveSessionHUD() {
   const endMutation = useEndActiveSessionMutation();
 
   const [isMinimized, setIsMinimized] = useState(false);
-  const [ticksSinceServer, setTicksSinceServer] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [fetchedAt, setFetchedAt] = useState(() => Date.now());
+
+  // Synchronize base fetch time when server state updates
+  useEffect(() => {
+    setFetchedAt(Date.now());
+    setNow(Date.now());
+  }, [activeSession?.elapsed_seconds, activeSession?.is_paused]);
 
   // Client-side 1s ticker while active session is running and not paused
   useEffect(() => {
     if (!activeSession || activeSession.is_paused) return;
 
     const interval = setInterval(() => {
-      setTicksSinceServer((prev) => prev + 1);
+      setNow(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeSession]);
+  }, [activeSession?.is_paused]);
 
   if (!activeSession) return null;
 
-  const localSeconds = (activeSession.elapsed_seconds ?? 0) + ticksSinceServer;
+  const tickSeconds = !activeSession.is_paused
+    ? Math.max(0, Math.floor((now - fetchedAt) / 1000))
+    : 0;
+  const localSeconds = (activeSession.elapsed_seconds ?? 0) + tickSeconds;
   const entry = activeSession.library_entry;
   const coverArtwork = entry?.game.artworks?.find((a) => a.asset_type === 'cover');
   const coverUrl = coverArtwork?.cached_url ?? coverArtwork?.remote_url;

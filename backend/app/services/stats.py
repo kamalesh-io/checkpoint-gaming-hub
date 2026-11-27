@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.collection import WishlistItem
 from app.models.game import Franchise, Game, Genre, game_genres
-from app.models.library import LibraryEntry, PlayingStatus
+from app.models.library import LibraryEntry, OwnershipStatus, PlayingStatus
 from app.models.session import PlaySession
 from app.schemas.stats import (
     FranchiseProgressItem,
@@ -33,8 +33,12 @@ class StatsService:
         end_date: Optional[datetime.date] = None,
     ) -> GamingStatsResponse:
         """Aggregates multi-dimensional stats without double-counting cumulative playtime."""
-        # 1. Status breakdown
-        stmt = select(LibraryEntry.playing_status, func.count(LibraryEntry.id)).group_by(LibraryEntry.playing_status)
+        # 1. Status breakdown (excludes unowned wishlist games)
+        stmt = (
+            select(LibraryEntry.playing_status, func.count(LibraryEntry.id))
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
+            .group_by(LibraryEntry.playing_status)
+        )
         res = await self.session.execute(stmt)
         status_map = {row[0]: row[1] for row in res.all()}
 
@@ -46,15 +50,22 @@ class StatsService:
         on_hold = status_map.get(PlayingStatus.ON_HOLD.value, 0)
         dropped = status_map.get(PlayingStatus.DROPPED.value, 0)
 
-        # Wishlist count
+        # Wishlist count (dedicated Wishlist items + unowned "To Buy" entries)
         wishlist_res = await self.session.execute(select(func.count(WishlistItem.id)))
-        wishlist_count = wishlist_res.scalar_one() or 0
+        dedicated_wishlist_count = wishlist_res.scalar_one() or 0
+        legacy_wishlist_res = await self.session.execute(
+            select(func.count(LibraryEntry.id)).where(
+                LibraryEntry.ownership_status == OwnershipStatus.TO_BUY.value
+            )
+        )
+        legacy_wishlist_count = legacy_wishlist_res.scalar_one() or 0
+        wishlist_count = dedicated_wishlist_count + legacy_wishlist_count
 
         # Cumulative hours and average rating
         metrics_stmt = select(
             func.coalesce(func.sum(LibraryEntry.hours_played), 0.0),
             func.avg(LibraryEntry.personal_rating),
-        )
+        ).where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
         metrics_res = await self.session.execute(metrics_stmt)
         m_row = metrics_res.one()
         total_hours = round(float(m_row[0]), 1)
@@ -66,6 +77,7 @@ class StatsService:
         most_played_stmt = (
             select(LibraryEntry)
             .join(Game, LibraryEntry.game_id == Game.id)
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
             .options(
                 selectinload(LibraryEntry.game).selectinload(Game.artworks)
             )
@@ -95,6 +107,7 @@ class StatsService:
                 func.count(LibraryEntry.id),
                 func.coalesce(func.sum(LibraryEntry.hours_played), 0.0),
             )
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
             .group_by(LibraryEntry.platform)
             .order_by(func.count(LibraryEntry.id).desc())
         )
@@ -114,6 +127,7 @@ class StatsService:
             .join(game_genres, Genre.id == game_genres.c.genre_id)
             .join(Game, game_genres.c.game_id == Game.id)
             .join(LibraryEntry, Game.id == LibraryEntry.game_id)
+            .where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
             .group_by(Genre.name)
             .order_by(func.sum(LibraryEntry.hours_played).desc())
             .limit(10)

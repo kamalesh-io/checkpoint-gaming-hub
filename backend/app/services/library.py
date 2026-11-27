@@ -18,15 +18,15 @@ from app.services.steamgriddb import steamgriddb_client
 
 
 def resolve_active_accent(game_title: str) -> str:
-    """Assigns an atmospheric dynamic accent token based on title heuristics."""
+    """Assigns an atmospheric dynamic accent token based on verified title heuristics."""
     t = game_title.lower()
-    if "elden ring" in t or "souls" in t or "witcher" in t:
+    if "elden ring" in t or "dark souls" in t or "demon's souls" in t or "souls" in t or "witcher" in t or "zelda" in t:
         return "accent-gold"
-    if "metro" in t or "fallout" in t or "stalker" in t or "doom" in t:
+    if "metro" in t or "fallout" in t or "stalker" in t or "s.t.a.l.k.e.r." in t or "doom" in t or "god of war" in t or "hades" in t or "red dead" in t or "rdr" in t:
         return "accent-amber"
-    if "watch dogs" in t or "deus ex" in t or "death stranding" in t:
+    if "watch dogs" in t or "watch_dogs" in t or "deus ex" in t or "death stranding" in t or "spider-man" in t or "batman" in t:
         return "accent-blue"
-    if "cyberpunk" in t or "phantom liberty" in t or "neon" in t:
+    if "cyberpunk" in t or "phantom liberty" in t or "neon" in t or "borderlands" in t:
         return "accent-yellow"
     return "primary"
 

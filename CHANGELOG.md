@@ -57,6 +57,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Implemented O(1) local game matching against `Game.steam_app_id`, `KNOWN_EDITION_ALIASES`, and normalized title indexing.
   * Automatically attaches high-resolution Steam capsule artwork to `GameArtwork` during library imports.
   * Increased frontend preview and import API timeouts from 12s to 60s in `steamApi.ts`.
+* **Currently Playing Carousel Restoration (BUG-011)**:
+  * Restored the Currently Playing shelf on the Overview Dashboard matching Stitch design `node_7560982411466141303`.
+  * Added circular carousel navigation controls (Previous/Next buttons, left/right keyboard arrows, controller D-pad/bumpers) with an active spotlight indicator badge.
+  * Selecting any game in the carousel dynamically updates the main cinematic backdrop and hero spotlight.
+  * Added an atmospheric empty state card when no games are currently marked as playing, guiding users to explore their library or discover new titles.
+* **Dynamic Background & Franchise Accent Switching (BUG-012)**:
+  * Fixed backdrop image loading race condition in `CinematicBackdrop.tsx` by verifying `img.complete` on image objects, preventing backdrops from getting stuck at `opacity-0` black screens.
+  * Extended palette resolution in `theme.ts` and `library.py` to support signature franchise colors (Elden Ring `#E0B45A` / `accent-gold`, Metro Exodus `#F09B4B` / `accent-amber`, Watch Dogs `#5BA8FF` / `accent-blue`, Cyberpunk 2077 `#F5DF4D` / `accent-yellow`, God of War, Hades, Witcher).
+* **Game Progress & Personal Rating Updates (BUG-013)**:
+  * Implemented Campaign Completion Progress slider (0–100%) and nullable Personal Rating (0–10 with clear button) across `AddGameModal.tsx`, `GameDetailsPage.tsx` ("Your Journey" sidebar), and `UpdateProgressModal.tsx`.
+  * Added quick progress milestone presets (0%, 25%, 50%, 75%, 100%) for one-click completion tracking.
+  * Fixed query cache invalidation on rating and progress mutations to refresh system statistics, backlog views, and library entries immediately.
+* **Playtime Tracking & Stats Synchronization (BUG-014)**:
+  * Resolved live HUD timer calculation in `ActiveSessionHUD.tsx` using timestamp delta (`Date.now() - fetchedAt`), preventing timer double-counting or skipping on background server refetches.
+  * Decoupled lifetime Steam imported playtime from local CHECKPOINT active gaming sessions.
+  * Guaranteed immediate system statistics updates upon session completion, manual session logging, edits, and deletions via query invalidation.
+* **Library & Wishlist Decoupling (BUG-015)**:
+  * Filtered out `ownership_status == "To Buy"` from default library queries in `LibraryRepository.list_entries` and frontend views (`MyLibraryPage`, `BigPictureLibraryPage`, and `OverviewPage`).
+  * Updated system stats, analytics, and backlog calculations to strictly exclude wishlist items from total games, completed games, and playtime metrics.
+  * Enhanced `WishlistPage.tsx` with dedicated "Mark Purchased" and "Move to Backlog" actions for seamless conversion when games are acquired.
 
 ## [1.0.0] - 2026-11-26
 

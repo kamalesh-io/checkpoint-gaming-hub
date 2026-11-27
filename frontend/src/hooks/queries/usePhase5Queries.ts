@@ -181,6 +181,7 @@ export function useEndActiveSessionMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }
@@ -203,6 +204,7 @@ export function useLogManualSessionMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }
@@ -223,6 +225,7 @@ export function useUpdateSessionHistoryMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }
@@ -235,6 +238,7 @@ export function useDeleteSessionHistoryMutation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
     },
   });
 }
@@ -432,10 +436,11 @@ export function useGamingStatsQuery(startDate?: string, endDate?: string) {
 
 // ======================== PHASE 5G: WISHLIST ========================
 
-export function useWishlistQuery(params: WishlistListParams = {}) {
+export function useWishlistQuery(params: WishlistListParams = {}, enabled = true) {
   return useQuery({
     queryKey: queryKeys.wishlist.list(params),
     queryFn: () => wishlistApi.list(params),
+    enabled,
   });
 }
 

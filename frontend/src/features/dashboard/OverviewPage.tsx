@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Compass,
   Gamepad2,
   Layers,
@@ -18,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { IconButton } from '@/components/ui/IconButton';
 import { GameCoverSkeleton, HeroSkeleton, LandscapeCardSkeleton } from '@/components/ui/Skeleton';
 import { ArtworkSelectorModal } from '@/features/modals/ArtworkSelectorModal';
 import { UpdateProgressModal } from '@/features/modals/UpdateProgressModal';
@@ -48,12 +51,15 @@ export function OverviewPage() {
   const statsQuery = useSystemStatsQuery();
   const updateMutation = useUpdateGameMutation();
 
-  const selectedHeroId = useControllerStore((s) => s.bigPictureActiveEntryId);
-  const setSelectedHeroId = useControllerStore((s) => s.setBigPictureActiveEntryId);
+  const setBpActiveEntryId = useControllerStore((s) => s.setBigPictureActiveEntryId);
+  const [activeHeroId, setActiveHeroId] = useState<string | null>(null);
   const [progressTarget, setProgressTarget] = useState<LibraryEntryRead | null>(null);
   const [artworkTarget, setArtworkTarget] = useState<LibraryEntryRead | null>(null);
 
-  const entries = useMemo(() => libraryQuery.data?.data ?? [], [libraryQuery.data]);
+  const entries = useMemo(
+    () => (libraryQuery.data?.data ?? []).filter((e) => e.ownership_status !== 'To Buy'),
+    [libraryQuery.data],
+  );
 
   const currentlyPlaying = useMemo(
     () => entries.filter((e) => e.playing_status === 'Currently Playing'),
@@ -62,8 +68,8 @@ export function OverviewPage() {
 
   const heroEntry = useMemo(() => {
     if (entries.length === 0) return null;
-    if (selectedHeroId) {
-      const explicit = entries.find((e) => e.id === selectedHeroId);
+    if (activeHeroId) {
+      const explicit = entries.find((e) => e.id === activeHeroId);
       if (explicit) return explicit;
     }
     return (
@@ -72,7 +78,21 @@ export function OverviewPage() {
       entries[0] ??
       null
     );
-  }, [entries, selectedHeroId, currentlyPlaying]);
+  }, [entries, activeHeroId, currentlyPlaying]);
+
+  const handleSelectHero = (id: string) => {
+    setActiveHeroId(id);
+    setBpActiveEntryId(id);
+  };
+
+  const stepCarousel = (direction: -1 | 1) => {
+    if (currentlyPlaying.length === 0) return;
+    const currentIdx = currentlyPlaying.findIndex((item) => item.id === heroEntry?.id);
+    const safeIdx = currentIdx >= 0 ? currentIdx : 0;
+    const nextIdx = (safeIdx + direction + currentlyPlaying.length) % currentlyPlaying.length;
+    const next = currentlyPlaying[nextIdx];
+    if (next) handleSelectHero(next.id);
+  };
 
   const upNext = useMemo(() => {
     if (backlogQuery.data?.queue && backlogQuery.data.queue.length > 0) {
@@ -165,37 +185,29 @@ export function OverviewPage() {
 
   const handleCarouselKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (currentlyPlaying.length <= 1) return;
-    const currentIdx = currentlyPlaying.findIndex((item) => item.id === heroEntry?.id);
-    const safeIdx = currentIdx >= 0 ? currentIdx : 0;
-
     if (e.key === 'ArrowRight') {
       e.preventDefault();
-      const next = currentlyPlaying[(safeIdx + 1) % currentlyPlaying.length];
-      if (next) setSelectedHeroId(next.id);
+      stepCarousel(1);
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      const prev =
-        currentlyPlaying[
-          (safeIdx - 1 + currentlyPlaying.length) % currentlyPlaying.length
-        ];
-      if (prev) setSelectedHeroId(prev.id);
+      stepCarousel(-1);
     }
   };
 
   // Support controller X (QUICK_ACTION) to open Update Progress for current spotlight game
-  const activeHeroId = heroEntry?.id ?? null;
+  const currentSpotlightId = heroEntry?.id ?? null;
   useEffect(() => {
     const onController = (ev: Event) => {
       const detail = (ev as CustomEvent<ControllerActionEvent>).detail;
       if (!detail || document.querySelector('[aria-modal="true"]')) return;
-      if (detail.action === 'QUICK_ACTION' && heroEntry && heroEntry.id === activeHeroId) {
+      if (detail.action === 'QUICK_ACTION' && heroEntry && heroEntry.id === currentSpotlightId) {
         ev.preventDefault();
         setProgressTarget(heroEntry);
       }
     };
     window.addEventListener(CONTROLLER_CUSTOM_EVENT, onController);
     return () => window.removeEventListener(CONTROLLER_CUSTOM_EVENT, onController);
-  }, [activeHeroId, heroEntry]);
+  }, [currentSpotlightId, heroEntry]);
 
   if (libraryQuery.isLoading) {
     return (
@@ -275,14 +287,34 @@ export function OverviewPage() {
         />
       )}
 
-      {/* Currently Playing 16:9 Carousel */}
-      {currentlyPlaying.length > 0 && (
-        <div onKeyDown={handleCarouselKeyDown}>
-          <GameShelf
-            title="Currently Playing"
-            subtitle="Select a title to preview its atmospheric theme, or double-click to inspect"
-            count={currentlyPlaying.length}
-            headerAction={
+      {/* Currently Playing 16:9 Carousel (Always rendered with Stitch design; empty state when 0) */}
+      <div onKeyDown={handleCarouselKeyDown}>
+        <GameShelf
+          title="Currently Playing"
+          subtitle="Select a title to preview its atmospheric theme and cinematic hero"
+          count={currentlyPlaying.length}
+          headerAction={
+            <div className="flex items-center gap-2">
+              {currentlyPlaying.length > 1 && (
+                <div className="flex items-center gap-1">
+                  <IconButton
+                    label="Previous currently playing title"
+                    variant="surface"
+                    size="sm"
+                    onClick={() => stepCarousel(-1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </IconButton>
+                  <IconButton
+                    label="Next currently playing title"
+                    variant="surface"
+                    size="sm"
+                    onClick={() => stepCarousel(1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </IconButton>
+                </div>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -290,20 +322,41 @@ export function OverviewPage() {
               >
                 View Library
               </Button>
-            }
-          >
-            {currentlyPlaying.map((entry) => (
+            </div>
+          }
+        >
+          {currentlyPlaying.length > 0 ? (
+            currentlyPlaying.map((entry) => (
               <LandscapeGameCard
                 key={entry.id}
                 entry={entry}
                 isActive={entry.id === heroEntry?.id}
-                onSelect={(e) => setSelectedHeroId(e.id)}
+                onSelect={(e) => handleSelectHero(e.id)}
                 onOpenDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
               />
-            ))}
-          </GameShelf>
-        </div>
-      )}
+            ))
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full p-6 rounded-xl border border-dashed border-outline/70 bg-secondary-background/60 text-muted">
+              <div className="space-y-1">
+                <p className="text-body-md font-medium text-on-surface">
+                  No games currently marked as Playing
+                </p>
+                <p className="text-body-sm text-muted">
+                  Select a title from Up Next or My Library and set its playing status to "Currently Playing" to feature it here.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="accent" size="sm" onClick={() => navigate(ROUTES.LIBRARY)}>
+                  Browse Library
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.DISCOVER)}>
+                  Discover Games
+                </Button>
+              </div>
+            </div>
+          )}
+        </GameShelf>
+      </div>
 
       {/* Up Next Priority Shelf */}
       {upNext.length > 0 && (

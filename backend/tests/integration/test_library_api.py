@@ -146,3 +146,74 @@ async def test_add_game_and_list_library(client: AsyncClient):
         empty_res = await client.get("/api/v1/library")
         assert empty_res.status_code == 200
         assert empty_res.json()["meta"]["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_wishlist_decoupled_from_library_and_rating_update(client: AsyncClient):
+    """BUG-013 & BUG-015: Ensure 'To Buy' items are decoupled from normal library queries and ratings can be set and cleared."""
+    with patch("app.services.library.igdb_client.get_game_details", new_callable=AsyncMock) as mock_igdb, \
+         patch("app.services.library.steamgriddb_client.get_all_artwork", new_callable=AsyncMock) as mock_sgdb, \
+         patch("app.services.library.artwork_cache.download_and_cache", new_callable=AsyncMock) as mock_cache:
+
+        mock_igdb.return_value = {
+            "igdb_id": 2001,
+            "title": "Wishlist Only Game",
+            "slug": "wishlist-only-game",
+            "summary": "Looking forward to this.",
+            "first_release_date": datetime.date(2024, 1, 1),
+            "igdb_rating": 85.0,
+            "genres": [{"name": "Adventure", "slug": "adventure"}],
+            "themes": [],
+            "cover_url": "https://images.igdb.com/igdb/image/upload/t_1080p/cover2001.jpg",
+            "screenshots": [],
+        }
+        mock_sgdb.return_value = {"covers": [], "heroes": [], "logos": [], "grids": []}
+        mock_cache.return_value = None
+
+        # 1. Add game with ownership_status = "To Buy" (Wishlist entry)
+        payload = {
+            "igdb_id": 2001,
+            "playing_status": "Planned",
+            "ownership_status": "To Buy",
+            "platform": "Steam",
+            "priority": "High",
+            "completion_goal": "Main Story",
+            "progress_pct": 0.0,
+            "personal_rating": 8.5,
+        }
+        res = await client.post("/api/v1/library", json=payload)
+        assert res.status_code == 201
+        entry_id = res.json()["id"]
+
+        # 2. BUG-015: Default library list must NOT include "To Buy" wishlist entry
+        default_lib = await client.get("/api/v1/library")
+        assert default_lib.status_code == 200
+        ids = [e["id"] for e in default_lib.json()["data"]]
+        assert entry_id not in ids
+        assert default_lib.json()["meta"]["total"] == 0
+
+        # 3. Explicit query with ownership_status="To Buy" DOES return the item
+        wishlist_lib = await client.get("/api/v1/library?ownership_status=To+Buy")
+        assert wishlist_lib.status_code == 200
+        assert wishlist_lib.json()["meta"]["total"] == 1
+        assert wishlist_lib.json()["data"][0]["id"] == entry_id
+
+        # 4. BUG-013: Update progress and clear rating (personal_rating: null)
+        patch_res = await client.patch(
+            f"/api/v1/library/{entry_id}",
+            json={"progress_pct": 50.0, "personal_rating": None, "ownership_status": "Owned"},
+        )
+        assert patch_res.status_code == 200
+        updated = patch_res.json()
+        assert updated["progress_pct"] == 50.0
+        assert updated["personal_rating"] is None
+        assert updated["ownership_status"] == "Owned"
+
+        # 5. Now that it is "Owned", default library list includes it
+        default_lib2 = await client.get("/api/v1/library")
+        assert default_lib2.status_code == 200
+        assert default_lib2.json()["meta"]["total"] == 1
+        assert default_lib2.json()["data"][0]["id"] == entry_id
+
+        # Cleanup
+        await client.delete(f"/api/v1/library/{entry_id}")

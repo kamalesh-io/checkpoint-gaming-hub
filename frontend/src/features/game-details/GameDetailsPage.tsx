@@ -17,6 +17,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  X,
 } from 'lucide-react';
 import { GameArtwork } from '@/components/game/GameArtwork';
 import { GameLogo } from '@/components/game/GameLogo';
@@ -93,6 +94,7 @@ function YourJourneySidebar({
   onSavePatch: (updates: Record<string, unknown>, message: string) => Promise<void>;
   isSaving: boolean;
 }) {
+  const [progressPct, setProgressPct] = useState(entry.progress_pct);
   const [plannedStartDate, setPlannedStartDate] = useState(entry.planned_start_date ?? '');
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     entry.target_completion_date ?? '',
@@ -126,6 +128,7 @@ function YourJourneySidebar({
 
     await onSavePatch(
       {
+        progress_pct: Math.round(progressPct),
         planned_start_date: plannedStartDate || null,
         target_completion_date: targetCompletionDate || null,
         custom_tags: customTags.trim(),
@@ -198,6 +201,54 @@ function YourJourneySidebar({
           options={COMPLETION_GOALS.map((g) => ({ value: g, label: g }))}
         />
 
+        {/* Campaign Completion Progress Slider */}
+        <div className="space-y-2 rounded-xl border border-outline/70 bg-surface/50 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-label-sm text-muted font-medium flex items-center gap-1.5">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-accent-active" />
+              <span>Completion Progress</span>
+            </span>
+            <span className="tabular-nums text-label-md font-bold text-accent-active">
+              {Math.round(progressPct)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            data-nav-item="true"
+            min={0}
+            max={100}
+            value={progressPct}
+            disabled={isSaving}
+            onChange={(e) => setProgressPct(Number(e.target.value))}
+            className="w-full accent-[var(--accent-active)] cursor-pointer"
+          />
+          <div className="flex items-center justify-between gap-1 pt-0.5">
+            {[0, 25, 50, 75, 100].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                data-nav-item="true"
+                disabled={isSaving}
+                onClick={() => {
+                  setProgressPct(preset);
+                  void onSavePatch(
+                    { progress_pct: preset },
+                    `Progress set to ${preset}%`,
+                  );
+                }}
+                className={cn(
+                  'rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums transition-colors',
+                  progressPct === preset
+                    ? 'bg-accent-active text-on-accent-active'
+                    : 'bg-secondary-background text-muted hover:text-on-surface border border-outline/60',
+                )}
+              >
+                {preset}%
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 3-Button Priority Selector */}
         <div className="space-y-1.5">
           <span className="text-label-sm text-muted font-medium">Priority Level</span>
@@ -234,16 +285,30 @@ function YourJourneySidebar({
         onSubmit={(e) => void handleSaveTimelineAndMeta(e)}
         className="space-y-3 border-t border-outline/65 pt-4"
       >
-        <Input
-          label="Personal Rating (0 – 10)"
-          type="number"
-          min={0}
-          max={10}
-          step={0.5}
-          value={ratingValue}
-          onChange={(e) => setRatingValue(e.target.value)}
-          placeholder="Unrated"
-        />
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Input
+              label="Personal Rating (0 – 10)"
+              type="number"
+              min={0}
+              max={10}
+              step={0.5}
+              value={ratingValue}
+              onChange={(e) => setRatingValue(e.target.value)}
+              placeholder="Unrated"
+            />
+          </div>
+          {ratingValue !== '' && (
+            <Button
+              variant="ghost"
+              size="md"
+              leftIcon={<X className="h-3.5 w-3.5" />}
+              onClick={() => setRatingValue('')}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
 
         <DatePicker
           label="Planned Start Date"
