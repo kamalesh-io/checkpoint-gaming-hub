@@ -3,6 +3,7 @@ import { AlertTriangle, Calendar, Check, ExternalLink, Plus, Star } from 'lucide
 import { GameArtwork } from '@/components/game/GameArtwork';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
@@ -254,18 +255,18 @@ function AddGameForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input
+          <DatePicker
             label="Planned Start Date (optional)"
-            type="date"
             value={plannedStartDate}
-            onChange={(e) => setPlannedStartDate(e.target.value)}
+            onChange={(d) => setPlannedStartDate(d ?? '')}
+            maxDate={targetCompletionDate || undefined}
           />
 
-          <Input
+          <DatePicker
             label="Target Completion Date (optional)"
-            type="date"
             value={targetCompletionDate}
-            onChange={(e) => setTargetCompletionDate(e.target.value)}
+            onChange={(d) => setTargetCompletionDate(d ?? '')}
+            minDate={plannedStartDate || undefined}
           />
         </div>
 

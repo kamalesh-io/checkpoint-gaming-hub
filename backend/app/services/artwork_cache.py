@@ -14,10 +14,23 @@ from app.core.logging import logger
 ALLOWED_ARTWORK_DOMAINS = {
     "images.igdb.com",
     "cdn2.steamgriddb.com",
+    "cdn.steamgriddb.com",
+    "images.steamgriddb.com",
+    "media.steamgriddb.com",
     "www.steamgriddb.com",
     "steamgriddb.com",
+    "assets.steamgriddb.com",
+    "static.steamgriddb.com",
     "shared.akamai.steamstatic.com",
     "cdn.cloudflare.steamstatic.com",
+    "cdn.steamstatic.com",
+    "shared.steamstatic.com",
+    "avatars.steamstatic.com",
+    "media.steampowered.com",
+    "steamcdn-a.akamaihd.net",
+    "steamuserimages-a.akamaihd.net",
+    "community.cloudflare.steamstatic.com",
+    "community.akamai.steamstatic.com",
 }
 
 
@@ -49,7 +62,14 @@ class ArtworkCacheService:
         if parsed.scheme not in ("http", "https"):
             raise SecurityException(f"Unsupported URL scheme: {parsed.scheme}")
         hostname = (parsed.hostname or "").lower()
-        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in ALLOWED_ARTWORK_DOMAINS):
+        trusted_roots = (
+            "igdb.com",
+            "steamgriddb.com",
+            "steamstatic.com",
+            "steampowered.com",
+            "akamaihd.net",
+        )
+        if not any(hostname == domain or hostname.endswith(f".{domain}") for domain in trusted_roots):
             raise SecurityException(f"Host '{hostname}' is not in the approved artwork whitelist.")
 
     async def download_and_cache(
@@ -116,7 +136,6 @@ class ArtworkCacheService:
                 # Verify image integrity and dimensions using Pillow
                 try:
                     with Image.open(io.BytesIO(data)) as img:
-                        img.verify()
                         w, h = img.size
                         is_animated = getattr(img, "is_animated", False) or mime_type == "image/gif"
                 except Exception as exc:

@@ -124,7 +124,7 @@ export function SteamImportModal({ open, onClose }: SteamImportModalProps) {
             <div className="flex items-center justify-center gap-3 text-accent-primary">
               <RefreshCw className="h-6 w-6 animate-spin" />
               <span className="font-semibold text-body-md">
-                Scanning Steam account games & querying IGDB...
+                Scanning Steam account games & metadata...
               </span>
             </div>
             <Skeleton className="h-20 w-full" />

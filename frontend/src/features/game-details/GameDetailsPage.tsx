@@ -22,6 +22,7 @@ import { GameArtwork } from '@/components/game/GameArtwork';
 import { GameLogo } from '@/components/game/GameLogo';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
@@ -244,18 +245,18 @@ function YourJourneySidebar({
           placeholder="Unrated"
         />
 
-        <Input
+        <DatePicker
           label="Planned Start Date"
-          type="date"
           value={plannedStartDate}
-          onChange={(e) => setPlannedStartDate(e.target.value)}
+          onChange={(d) => setPlannedStartDate(d ?? '')}
+          maxDate={targetCompletionDate || undefined}
         />
 
-        <Input
+        <DatePicker
           label="Target Completion Date"
-          type="date"
           value={targetCompletionDate}
-          onChange={(e) => setTargetCompletionDate(e.target.value)}
+          onChange={(d) => setTargetCompletionDate(d ?? '')}
+          minDate={plannedStartDate || undefined}
         />
 
         <Input

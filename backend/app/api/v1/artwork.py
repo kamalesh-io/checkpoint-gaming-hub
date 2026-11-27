@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundException, ValidationException
+from app.core.logging import logger
 from app.database.session import get_db
 from app.models.artwork import GameArtwork, AssetType
 from app.schemas.artwork import GameArtworkResponse, ArtworkSelectRequest
@@ -142,9 +143,17 @@ async def set_active_artwork(
     if not artwork:
         validated_value = AssetType(req.asset_type).value
         cache_category = category_map.get(validated_value, "covers")
-        cached = await cache_service.download_and_cache(req.steamgriddb_url, cache_category)
+        try:
+            cached = await cache_service.download_and_cache(req.steamgriddb_url, cache_category)
+        except Exception as exc:
+            logger.error(f"Failed to download and cache artwork from {req.steamgriddb_url}: {exc}")
+            cached = None
+
         if not cached:
-            raise HTTPException(status_code=502, detail="Failed to fetch and cache artwork from remote URL.")
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Failed to download selected artwork from remote CDN. Retained existing artwork.",
+            )
 
         import uuid
         artwork = GameArtwork(
@@ -172,9 +181,17 @@ async def set_active_artwork(
             else None
         )
         if expected_cached_path is None or not expected_cached_path.is_file():
-            cached = await cache_service.download_and_cache(artwork.remote_url, cache_category)
+            try:
+                cached = await cache_service.download_and_cache(artwork.remote_url, cache_category)
+            except Exception as exc:
+                logger.error(f"Failed to re-cache artwork from {artwork.remote_url}: {exc}")
+                cached = None
+
             if not cached:
-                raise HTTPException(status_code=502, detail="Failed to re-cache missing artwork asset.")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Failed to re-cache missing artwork asset. Retained existing artwork.",
+                )
             artwork.local_path = str(cached["local_path"])
             artwork.sha256_hash = cached["sha256_hash"]
             artwork.width = cached["width"] or artwork.width or width_hint

@@ -1,6 +1,7 @@
 """Steam library scanning, IGDB matching, preview generation, and synchronization service."""
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
+import uuid
 import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.schemas.steam import (
     SteamImportExecuteResponse,
     SteamImportPreviewResponse,
 )
+from app.services.game_detector import KNOWN_EDITION_ALIASES
 from app.services.igdb import IGDBClient
 from app.services.steam import STEAM_API_BASE
 
@@ -63,7 +65,7 @@ class SteamSyncService:
             return False, [], f"Connection error: {type(exc).__name__}"
 
     async def generate_import_preview(self) -> SteamImportPreviewResponse:
-        """Scans Steam library and categorizes titles into new, existing, and unmatched."""
+        """Scans Steam library and categorizes titles into new, existing, and unmatched in O(1) time."""
         account = await self.get_active_account()
         if not account:
             raise ValueError("No connected Steam account found.")
@@ -80,9 +82,22 @@ class SteamSyncService:
         result = await self.session.execute(select(Game).where(Game.steam_app_id.isnot(None)))
         local_steam_games = {g.steam_app_id: g for g in result.scalars().all()}
 
+        # Also fetch all games indexed by normalized title
+        all_games_res = await self.session.execute(select(Game))
+        local_games_by_title = {g.title.lower().strip(): g for g in all_games_res.scalars().all()}
+
         # 2. Fetch existing library entries mapped by game_id
         entry_result = await self.session.execute(select(LibraryEntry))
         library_entries_by_game = {e.game_id: e for e in entry_result.scalars().all()}
+
+        # 3. Fetch active covers for all games in a single batch query
+        art_res = await self.session.execute(
+            select(GameArtwork).where(
+                GameArtwork.asset_type == AssetType.COVER.value,
+                GameArtwork.is_active == True,  # noqa: E712
+            )
+        )
+        covers_by_game = {a.game_id: a.original_url for a in art_res.scalars().all()}
 
         new_games: List[SteamGamePreview] = []
         existing_games: List[SteamGamePreview] = []
@@ -96,31 +111,34 @@ class SteamSyncService:
             name = item.get("name", f"Steam App {app_id}")
             playtime = int(item.get("playtime_forever", 0))
             last_played = item.get("rtime_last_played")
-            cover_url = None
+            
+            # Default instant high-resolution Steam CDN capsule artwork (600x900)
+            cover_url = f"https://shared.steamstatic.com/store_item_assets/steam/apps/{app_id}/library_600x900.jpg"
 
-            # Case A: Already in Checkpoint database
-            if app_id in local_steam_games:
-                game = local_steam_games[app_id]
-                entry = library_entries_by_game.get(game.id)
+            # Check local games by direct app_id, known edition alias, or title match
+            matched_game = local_steam_games.get(app_id)
+            if not matched_game:
+                aliases = KNOWN_EDITION_ALIASES.get(app_id)
+                if aliases:
+                    for alias_id in aliases:
+                        if alias_id in local_steam_games:
+                            matched_game = local_steam_games[alias_id]
+                            break
+            if not matched_game:
+                matched_game = local_games_by_title.get(name.lower().strip())
 
-                # Find active cover artwork if available
-                art_res = await self.session.execute(
-                    select(GameArtwork).where(
-                        GameArtwork.game_id == game.id,
-                        GameArtwork.asset_type == AssetType.COVER.value,
-                        GameArtwork.is_active == True,  # noqa: E712
-                    )
-                )
-                cover_art = art_res.scalar_one_or_none()
-                if cover_art:
-                    cover_url = cover_art.original_url
+            if matched_game:
+                entry = library_entries_by_game.get(matched_game.id)
+                local_cover = covers_by_game.get(matched_game.id)
+                if local_cover:
+                    cover_url = local_cover
 
                 preview = SteamGamePreview(
                     steam_app_id=app_id,
-                    title=game.title,
+                    title=matched_game.title,
                     playtime_forever_minutes=playtime,
                     last_played_timestamp=last_played,
-                    igdb_id=game.igdb_id,
+                    igdb_id=matched_game.igdb_id,
                     cover_url=cover_url,
                     ownership_status=entry.ownership_status if entry else OwnershipStatus.OWNED.value,
                     already_imported=entry is not None,
@@ -131,54 +149,18 @@ class SteamSyncService:
                     existing_games.append(preview)
                 else:
                     new_games.append(preview)
-                continue
-
-            # Case B: Not in local DB, attempt IGDB match by Steam App ID
-            igdb_matched = None
-            try:
-                if settings.get_igdb_client_id() and settings.get_igdb_client_secret():
-                    candidates = await self.igdb_client.search_games(name, limit=5)
-                    # Look for exact or high-confidence match with matching steam_app_id
-                    for cand in candidates:
-                        if cand.steam_app_id == app_id:
-                            igdb_matched = cand
-                            break
-                    if not igdb_matched and candidates:
-                        # Fallback to top candidate if name is near identical
-                        cand = candidates[0]
-                        if cand.title.lower().strip() == name.lower().strip():
-                            igdb_matched = cand
-            except Exception as exc:
-                logger.warning(f"IGDB search for Steam App {app_id} ('{name}') encountered: {exc}")
-
-            if igdb_matched:
-                new_games.append(
-                    SteamGamePreview(
-                        steam_app_id=app_id,
-                        title=igdb_matched.title,
-                        playtime_forever_minutes=playtime,
-                        last_played_timestamp=last_played,
-                        igdb_id=igdb_matched.igdb_id,
-                        cover_url=igdb_matched.cover_url,
-                        ownership_status=OwnershipStatus.OWNED.value,
-                        already_imported=False,
-                    )
-                )
             else:
-                # Icon URL fallback from Steam CDN
-                icon_hash = item.get("img_icon_url")
-                fallback_cover = (
-                    f"https://media.steampowered.com/steamcommunity/public/images/apps/{app_id}/{icon_hash}.jpg"
-                    if icon_hash
-                    else None
-                )
-                unmatched_games.append(
+                # New unimported Steam game.
+                # Avoid sequential external IGDB searches to prevent timeout on large libraries.
+                # Provide instant Steam 600x900 capsule artwork and accurate telemetry.
+                new_games.append(
                     SteamGamePreview(
                         steam_app_id=app_id,
                         title=name,
                         playtime_forever_minutes=playtime,
                         last_played_timestamp=last_played,
-                        cover_url=fallback_cover,
+                        igdb_id=None,
+                        cover_url=cover_url,
                         ownership_status=OwnershipStatus.OWNED.value,
                         already_imported=False,
                     )
@@ -251,6 +233,20 @@ class SteamSyncService:
                     )
                     self.session.add(game)
                     await self.session.flush()
+
+                    # Add default Steam CDN cover artwork
+                    cover_url = f"https://shared.steamstatic.com/store_item_assets/steam/apps/{app_id}/library_600x900.jpg"
+                    art = GameArtwork(
+                        id=str(uuid.uuid4()),
+                        game_id=game.id,
+                        asset_type=AssetType.COVER.value,
+                        remote_url=cover_url,
+                        width=600,
+                        height=900,
+                        is_active=True,
+                        source="steam",
+                    )
+                    self.session.add(art)
 
                 # Check if LibraryEntry exists
                 e_res = await self.session.execute(

@@ -49,6 +49,7 @@ app = FastAPI(
 # CORS middleware for local Tauri desktop webview and local dev frontend
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"^(https?://(localhost|127\.0\.0\.1|tauri\.localhost)(:\d+)?|tauri://localhost)$",
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -66,20 +67,34 @@ app.add_middleware(
 # Loopback and X-Checkpoint-Token security handshake middleware
 app.middleware("http")(security_handshake_middleware)
 
+def _cors_response(request: Request, response: JSONResponse) -> JSONResponse:
+    """Attaches CORS headers to direct JSON responses to prevent browser fetch failures."""
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
 # Register custom exception handlers
 @app.exception_handler(CheckpointException)
 async def checkpoint_exception_handler(request: Request, exc: CheckpointException):
     """Handle domain exceptions with structured error response."""
     logger.warning(f"Domain exception on {request.url.path}: [{exc.code}] {exc.message}")
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "details": exc.details,
-            }
-        },
+    return _cors_response(
+        request,
+        JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "details": exc.details,
+                }
+            },
+        ),
     )
 
 
@@ -87,30 +102,36 @@ async def checkpoint_exception_handler(request: Request, exc: CheckpointExceptio
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle request schema validation errors."""
     logger.warning(f"Validation error on {request.url.path}: {exc.errors()}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Invalid request parameters or payload.",
-                "details": {"errors": exc.errors()},
-            }
-        },
+    return _cors_response(
+        request,
+        JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Invalid request parameters or payload.",
+                    "details": {"errors": exc.errors()},
+                }
+            },
+        ),
     )
 
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle standard HTTP exceptions with unified error envelope."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "error": {
-                "code": f"HTTP_{exc.status_code}",
-                "message": str(exc.detail),
-            }
-        },
-        headers=getattr(exc, "headers", None),
+    return _cors_response(
+        request,
+        JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": f"HTTP_{exc.status_code}",
+                    "message": str(exc.detail),
+                }
+            },
+            headers=getattr(exc, "headers", None),
+        ),
     )
 
 
@@ -118,14 +139,17 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def unhandled_exception_handler(request: Request, exc: Exception):
     """Catch-all unhandled exception handler to avoid leaking raw tracebacks."""
     logger.exception(f"Unhandled server error on {request.url.path}: {str(exc)}")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": {
-                "code": "INTERNAL_SERVER_ERROR",
-                "message": "An unexpected internal server error occurred.",
-            }
-        },
+    return _cors_response(
+        request,
+        JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected internal server error occurred.",
+                }
+            },
+        ),
     )
 
 

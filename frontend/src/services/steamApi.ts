@@ -30,13 +30,13 @@ export const steamApi = {
   },
 
   getImportPreview: async (): Promise<SteamImportPreviewResponse> => {
-    return apiClient.post<SteamImportPreviewResponse>('/steam/preview');
+    return apiClient.post<SteamImportPreviewResponse>('/steam/preview', undefined, undefined, 60000);
   },
 
   executeImport: async (
     req: SteamImportExecuteRequest,
   ): Promise<SteamImportExecuteResponse> => {
-    return apiClient.post<SteamImportExecuteResponse>('/steam/import', req);
+    return apiClient.post<SteamImportExecuteResponse>('/steam/import', req, undefined, 60000);
   },
 
   getGameAchievements: async (

@@ -3,6 +3,7 @@ export * from './Button';
 export * from './Checkbox';
 export * from './ContextMenu';
 export * from './ControllerButtonHint';
+export * from './DatePicker';
 export * from './DropdownMenu';
 export * from './EmptyState';
 export * from './ErrorState';

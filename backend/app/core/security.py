@@ -33,7 +33,7 @@ async def security_handshake_middleware(request: Request, call_next):
     if client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
         logger.warning(f"Rejected connection from non-loopback host: {client_host}")
         from fastapi.responses import JSONResponse
-        return JSONResponse(
+        res = JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={
                 "error": {
@@ -42,6 +42,11 @@ async def security_handshake_middleware(request: Request, call_next):
                 }
             },
         )
+        origin = request.headers.get("origin")
+        if origin:
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+        return res
 
     # Allow unauthenticated access to health check, docs, and openapi schema
     public_paths = (
@@ -64,7 +69,7 @@ async def security_handshake_middleware(request: Request, call_next):
     if not token or not secrets.compare_digest(token, expected_token):
         logger.warning(f"Unauthorized request to {request.url.path}")
         from fastapi.responses import JSONResponse
-        return JSONResponse(
+        res = JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "error": {
@@ -73,5 +78,10 @@ async def security_handshake_middleware(request: Request, call_next):
                 }
             },
         )
+        origin = request.headers.get("origin")
+        if origin:
+            res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+        return res
 
     return await call_next(request)

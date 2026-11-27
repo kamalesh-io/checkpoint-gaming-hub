@@ -28,6 +28,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Created `GlobalSearchAutocomplete.tsx` featuring a Steam-style floating autocomplete dropdown with 300ms debouncing, minimum 2-character threshold, and top 8 matching titles with 2:3 thumbnails, release year, IGDB rating, and "In Library" status badge.
   * Implemented full keyboard navigation (ArrowUp, ArrowDown, Escape to dismiss, Enter to select).
   * Built seamless two-way state synchronization between `useAppStore.globalSearchQuery` and `DiscoverPage.tsx`.
+* **Reusable CHECKPOINT V2 Calendar Date Picker (BUG-006)**:
+  * Replaced native browser `dd-mm-yyyy` text inputs in `AddGameModal.tsx` and `GameDetailsPage.tsx` with a custom dark-atmospheric `<DatePicker>` popover component (`frontend/src/components/ui/DatePicker.tsx`).
+  * Implemented month/year dropdown navigation, quick "Today" shortcut, "Clear Date" action, active day highlight with CHECKPOINT V2 tokens (`#161D2B/98`, `#242E42`), and `data-nav-item="true"` spatial navigation accessibility.
+  * Enforced standard `DD-MM-YYYY` human display formatting alongside ISO 8601 (`YYYY-MM-DD`) internal serialization.
+  * Enforced date range validation ensuring planned start dates cannot succeed target completion dates.
+  * Extracted reusable date parsing and formatting utilities in `frontend/src/utils/date.ts`.
+* **Automatic Steam Game Discovery & Cross-Edition Mapping (BUG-007)**:
+  * Enhanced `GameDetectorService` with multi-tier installation scanning:
+    * Windows Registry discovery (`HKCU\Software\Valve\Steam\SteamPath` and `HKLM\SOFTWARE\WOW6432Node\Valve\Steam\InstallPath`).
+    * Mounted drive scanning across all system drive letters (`C:\`, `D:\`, `E:\`, `F:\`, etc.).
+    * VDF parsing across multi-drive Steam libraries in `libraryfolders.vdf`.
+  * Added `find_primary_game_executable()` scanning both game install roots and engine subdirectories (`bin/`, `bin/x64/`, `Binaries/Win64/`, etc.), while filtering out crash handlers, uninstallers, and setup helpers.
+  * Added `KNOWN_EDITION_ALIASES` mapping base games to enhanced, remastered, and GOTY releases (e.g. Metro Exodus `412020` <-> `1449560`, The Witcher 3 `292030` <-> `499450`, Skyrim `72850` <-> `489830`, Dark Souls II, Death Stranding, Bioshock).
+* **Game Launcher Path Validation & Native Executable Picker (BUG-008)**:
+  * Enhanced `GameLauncherService` and Tauri launcher IPC to safely strip surrounding quotation marks (`"..."` and `'...'`) and leading/trailing whitespace from executable paths.
+  * Added native Windows OpenFileDialog support via Tauri IPC (`pick_executable_file`) with a "Browse EXE" button in `LaunchConfigModal.tsx`.
+  * Auto-populates detected local Steam executables in launch configurations when unconfigured.
+  * Displays explicit OS-level error details on launch failure instead of generic errors.
+* **SteamGridDB Artwork Selection & Query Invalidation (BUG-009)**:
+  * Expanded `ALLOWED_ARTWORK_DOMAINS` in `ArtworkCacheService` to encompass all SteamGridDB CDNs (`cdn2.steamgriddb.com`, `images.steamgriddb.com`, `media.steamgriddb.com`, `assets.steamgriddb.com`, `static.steamgriddb.com`) and Steam CDNs (`shared.steamstatic.com`, `cdn.steamstatic.com`, `media.steampowered.com`, `akamaihd.net`).
+  * Added CORS headers to early error/handshake responses in `main.py` and `security.py`, preventing browser fetch rejection.
+  * Configured `/api/v1/artwork/select` to retain existing active artwork if a remote download fails and return HTTP 502 with friendly feedback.
+  * Enhanced `useSelectArtworkMutation` to invalidate `library.all`, `library.detail(gameId)`, `artwork.cacheStatus`, and `search.all` queries for instant UI refresh.
+* **Steam Library Synchronization Optimization (BUG-010)**:
+  * Eliminated the sequential O(N) external IGDB search bottleneck in `SteamSyncService.generate_import_preview()`.
+  * Leveraged Valve's instant 600x900 capsule CDN (`https://shared.steamstatic.com/store_item_assets/steam/apps/{app_id}/library_600x900.jpg`) to generate preview artwork instantaneously.
+  * Implemented O(1) local game matching against `Game.steam_app_id`, `KNOWN_EDITION_ALIASES`, and normalized title indexing.
+  * Automatically attaches high-resolution Steam capsule artwork to `GameArtwork` during library imports.
+  * Increased frontend preview and import API timeouts from 12s to 60s in `steamApi.ts`.
 
 ## [1.0.0] - 2026-11-26
 

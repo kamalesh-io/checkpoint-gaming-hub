@@ -54,9 +54,19 @@ pub fn launch_executable(
     minimize_on_launch: bool,
     window: Window,
 ) -> Result<u32, String> {
-    let path = Path::new(&exe_path);
-    if !path.exists() || !path.is_file() {
-        return Err(format!("Executable does not exist at '{}'", exe_path));
+    let mut clean_exe = exe_path.trim();
+    if (clean_exe.starts_with('"') && clean_exe.ends_with('"'))
+        || (clean_exe.starts_with('\'') && clean_exe.ends_with('\''))
+    {
+        clean_exe = clean_exe[1..clean_exe.len() - 1].trim();
+    }
+
+    let path = Path::new(clean_exe);
+    if !path.exists() {
+        return Err(format!("Target executable file does not exist at '{}'. Please verify the path.", clean_exe));
+    }
+    if !path.is_file() {
+        return Err(format!("Specified target '{}' is a directory, not an executable file.", clean_exe));
     }
 
     // Strict extension verification: only binary .exe files are permitted
@@ -97,6 +107,43 @@ pub fn launch_executable(
     }
 
     Ok(pid)
+}
+
+#[tauri::command]
+pub fn pick_executable_file() -> Result<Option<String>, String> {
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        let script = r#"
+            Add-Type -AssemblyName System.Windows.Forms
+            $dlg = New-Object System.Windows.Forms.OpenFileDialog
+            $dlg.Title = "Select Game Executable"
+            $dlg.Filter = "Game Executable (*.exe)|*.exe|All Files (*.*)|*.*"
+            if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                Write-Output $dlg.FileName
+            }
+        "#;
+        let output = Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", script])
+            .output()
+            .map_err(|e| format!("Failed to open Windows file dialog: {}", e))?;
+
+        if output.status.success() {
+            let res = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if res.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(res))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        Ok(None)
+    }
 }
 
 #[tauri::command]

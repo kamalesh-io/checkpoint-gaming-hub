@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use tauri::State;
 
 use gamepad::{spawn_native_gamepad_thread, NativeGamepadSnapshot, NativeGamepadState, SharedGamepadState};
-use launcher::{launch_executable, launch_steam_game, restore_window};
+use launcher::{launch_executable, launch_steam_game, pick_executable_file, restore_window};
 use process_manager::{BackendState, BackendStatus, BackendStatusInfo, LocalApiConfig, ProcessManager, SharedBackendState};
 
 #[tauri::command]
@@ -144,6 +144,7 @@ pub fn run() {
             set_native_gamepad_polling,
             launch_steam_game,
             launch_executable,
+            pick_executable_file,
             restore_window
         ])
         .setup(move |app| {

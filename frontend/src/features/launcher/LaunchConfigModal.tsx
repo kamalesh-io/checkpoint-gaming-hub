@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
+  FolderOpen,
   Gamepad2,
   Minimize2,
   Play,
@@ -15,6 +17,7 @@ import {
   useSetLaunchConfigMutation,
 } from '@/hooks/queries/usePhase6Queries';
 import { launcherApi } from '@/services/launcherApi';
+import { isTauriRuntime } from '@/services/api';
 import { useToastStore } from '@/stores/toastStore';
 import type { LaunchConfigResponse } from '@/types';
 
@@ -47,12 +50,45 @@ function LaunchConfigForm({
   const [minimizeOnLaunch, setMinimizeOnLaunch] = useState(true);
   const [isLaunching, setIsLaunching] = useState(false);
 
+  const normalizePath = (raw: string): string => {
+    let clean = raw.trim();
+    if (
+      (clean.startsWith('"') && clean.endsWith('"')) ||
+      (clean.startsWith("'") && clean.endsWith("'"))
+    ) {
+      clean = clean.slice(1, -1).trim();
+    }
+    return clean;
+  };
+
+  const handlePathChange = (val: string) => {
+    setExecutablePath(normalizePath(val));
+  };
+
+  const handleBrowseExecutable = async () => {
+    if (!isTauriRuntime()) return;
+    try {
+      const selected = await invoke<string | null>('pick_executable_file');
+      if (selected) {
+        handlePathChange(selected);
+      }
+    } catch (err) {
+      addToast({
+        title: 'File Picker Error',
+        description: err instanceof Error ? err.message : 'Could not open Windows file dialog.',
+        tone: 'error',
+      });
+    }
+  };
+
   const handleSave = async () => {
     try {
+      const cleanPath = normalizePath(executablePath);
       await setConfigMutation.mutateAsync({
-        executable_path: executablePath.trim() || null,
+        executable_path: cleanPath || null,
         launch_arguments: launchArgs.trim() || null,
       });
+      setExecutablePath(cleanPath);
       addToast({
         title: 'Launch Configuration Saved',
         description: 'Successfully updated game launch parameters.',
@@ -70,10 +106,11 @@ function LaunchConfigForm({
   const handleLaunch = async () => {
     setIsLaunching(true);
     try {
+      const cleanPath = normalizePath(executablePath);
       // 1. If custom executable is configured, launch it
-      if (executablePath.trim()) {
+      if (cleanPath) {
         const argsList = launchArgs.trim() ? launchArgs.trim().split(/\s+/) : undefined;
-        await launcherApi.launchExecutable(executablePath.trim(), argsList, minimizeOnLaunch);
+        await launcherApi.launchExecutable(cleanPath, argsList, minimizeOnLaunch);
         addToast({
           title: `Launching ${gameTitle}`,
           description: 'Game process started.',
@@ -96,7 +133,12 @@ function LaunchConfigForm({
     } catch (err) {
       addToast({
         title: 'Launch Failed',
-        description: err instanceof Error ? err.message : 'Could not launch game.',
+        description:
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : 'Could not launch game.',
         tone: 'error',
       });
     } finally {
@@ -150,12 +192,26 @@ function LaunchConfigForm({
           <span>Executable Path (.exe)</span>
           <span className="text-xs text-muted">Binary only • Shell scripts forbidden</span>
         </label>
-        <Input
-          value={executablePath}
-          onChange={(e) => setExecutablePath(e.target.value)}
-          placeholder="C:\Games\ExampleGame\game.exe"
-          data-nav-item="true"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            value={executablePath}
+            onChange={(e) => handlePathChange(e.target.value)}
+            placeholder="C:\Games\ExampleGame\game.exe"
+            data-nav-item="true"
+            className="flex-1"
+          />
+          {isTauriRuntime() && (
+            <Button
+              type="button"
+              variant="secondary"
+              leftIcon={<FolderOpen className="h-4 w-4" />}
+              onClick={handleBrowseExecutable}
+              data-nav-item="true"
+            >
+              Browse EXE
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Launch Arguments */}

@@ -17,9 +17,15 @@ export function useSelectArtworkMutation() {
 
   return useMutation({
     mutationFn: (payload: ArtworkSelectRequest) => artworkApi.selectArtwork(payload),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.library.all });
+      if (variables.game_id) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.library.detail(variables.game_id),
+        });
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.artwork.cacheStatus });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.search.all });
     },
   });
 }

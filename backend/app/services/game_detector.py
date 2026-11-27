@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 import psutil
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,6 +57,85 @@ EXCLUDED_PROCESS_NAMES: Set[str] = {
     "checkpoint-backend-x86_64-pc-windows-msvc.exe",
 }
 
+# Cross-edition Steam App ID aliases (e.g. Base game <-> Enhanced Edition / GOTY)
+KNOWN_EDITION_ALIASES: Dict[int, Set[int]] = {
+    # Metro Exodus (Base: 412020 <-> Enhanced Edition: 1449560)
+    412020: {412020, 1449560},
+    1449560: {412020, 1449560},
+    # The Witcher 3: Wild Hunt (Base: 292030 <-> Complete: 499450)
+    292030: {292030, 499450},
+    499450: {292030, 499450},
+    # The Elder Scrolls V: Skyrim (Standard: 72850 <-> Special Edition: 489830)
+    72850: {72850, 489830},
+    489830: {72850, 489830},
+    # Dark Souls II (Original: 236430 <-> Scholar of the First Sin: 335300)
+    236430: {236430, 335300},
+    335300: {236430, 335300},
+    # Death Stranding (Original: 1190460 <-> Director's Cut: 1850570)
+    1190460: {1190460, 1850570},
+    1850570: {1190460, 1850570},
+    # Bioshock (Original: 7670 <-> Remastered: 409710)
+    7670: {7670, 409710},
+    409710: {7670, 409710},
+}
+
+
+def find_primary_game_executable(install_path: Path, game_title: str = "") -> Optional[str]:
+    """Finds primary game executable inside install dir, checking root and common subfolders."""
+    if not install_path.exists() or not install_path.is_dir():
+        return None
+
+    exes: List[Path] = []
+    # 1. Root level executables
+    try:
+        for f in install_path.glob("*.exe"):
+            if f.is_file() and f.name.lower() not in EXCLUDED_PROCESS_NAMES:
+                exes.append(f)
+    except Exception:
+        pass
+
+    # 2. Common engine subdirectories (Unreal, Unity, CryEngine, REDengine)
+    common_subdirs = [
+        "bin", "bin/x64", "bin/x86", "Binaries", "Binaries/Win64", "Binaries/Win32",
+        "Game", "Shipping", "Release", "build"
+    ]
+    for sub in common_subdirs:
+        sub_path = install_path / sub
+        if sub_path.exists() and sub_path.is_dir():
+            try:
+                for f in sub_path.glob("*.exe"):
+                    if f.is_file() and f.name.lower() not in EXCLUDED_PROCESS_NAMES:
+                        exes.append(f)
+            except Exception:
+                pass
+
+    # 3. Two levels deep fallback
+    if not exes:
+        try:
+            for p in install_path.glob("*/*.exe"):
+                if p.is_file() and p.name.lower() not in EXCLUDED_PROCESS_NAMES:
+                    exes.append(p)
+        except Exception:
+            pass
+
+    if not exes:
+        return None
+
+    # Score candidates: exact name match with game title or largest file size
+    norm_title = re.sub(r"[^a-zA-Z0-9]", "", game_title).lower() if game_title else ""
+
+    def score_exe(exe: Path) -> Tuple[int, int]:
+        name_clean = re.sub(r"[^a-zA-Z0-9]", "", exe.stem).lower()
+        title_match = 1 if norm_title and (norm_title in name_clean or name_clean in norm_title) else 0
+        try:
+            size = exe.stat().st_size
+        except Exception:
+            size = 0
+        return (title_match, size)
+
+    exes.sort(key=score_exe, reverse=True)
+    return str(exes[0])
+
 
 class GameDetectorService:
     """Detects local Steam installations across drives and monitors running game processes."""
@@ -66,12 +145,44 @@ class GameDetectorService:
 
     @staticmethod
     def get_steam_installation_path() -> Optional[Path]:
-        """Finds primary Steam root on Windows via environment or common default locations."""
+        """Finds primary Steam root on Windows via registry, environment or common default locations."""
+        # 1. Windows Registry Discovery
+        if sys.platform == "win32":
+            try:
+                import winreg
+
+                # Check HKCU
+                try:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
+                        val, _ = winreg.QueryValueEx(key, "SteamPath")
+                        if val:
+                            p = Path(val.replace("/", "\\"))
+                            if p.exists() and (p / "steam.exe").exists():
+                                return p
+                except Exception:
+                    pass
+
+                # Check HKLM
+                for subkey in (r"SOFTWARE\WOW6432Node\Valve\Steam", r"SOFTWARE\Valve\Steam"):
+                    try:
+                        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, subkey) as key:
+                            val, _ = winreg.QueryValueEx(key, "InstallPath")
+                            if val:
+                                p = Path(val.replace("/", "\\"))
+                                if p.exists() and (p / "steam.exe").exists():
+                                    return p
+                    except Exception:
+                        pass
+            except Exception as exc:
+                logger.debug(f"Error querying Windows Registry for Steam: {exc}")
+
+        # 2. Environment and standard directories
         candidates = [
             Path(os.environ.get("PROGRAMFILES(X86)", "C:/Program Files (x86)")) / "Steam",
             Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Steam",
             Path("C:/Steam"),
             Path("D:/Steam"),
+            Path("E:/Steam"),
         ]
         for p in candidates:
             if (p / "steamapps" / "libraryfolders.vdf").exists():
@@ -82,26 +193,32 @@ class GameDetectorService:
 
     @classmethod
     def find_all_steam_libraries(cls) -> List[Path]:
-        """Parses libraryfolders.vdf to discover all Steam library folders across all storage drives."""
+        """Parses libraryfolders.vdf and scans storage drives to discover all Steam library folders."""
+        libraries: List[Path] = []
         root = cls.get_steam_installation_path()
-        if not root:
-            return []
+        if root and root.exists():
+            libraries.append(root)
 
-        vdf_path = root / "steamapps" / "libraryfolders.vdf"
-        if not vdf_path.exists():
-            return [root]
+            vdf_path = root / "steamapps" / "libraryfolders.vdf"
+            if vdf_path.exists():
+                try:
+                    content = vdf_path.read_text(encoding="utf-8", errors="ignore")
+                    # Matches: "path" "D:\\SteamLibrary" or "1" { "path" "E:\\Games\\Steam" }
+                    matches = re.findall(r'"path"\s+"([^"]+)"', content, re.IGNORECASE)
+                    for m in matches:
+                        p = Path(m.replace("\\\\", "/"))
+                        if p.exists() and p not in libraries:
+                            libraries.append(p)
+                except Exception as exc:
+                    logger.warning(f"Error parsing Steam libraryfolders.vdf: {exc}")
 
-        libraries: List[Path] = [root]
-        try:
-            content = vdf_path.read_text(encoding="utf-8", errors="ignore")
-            # Matches: "path" "D:\\SteamLibrary" or "1" { "path" "E:\\Games\\Steam" }
-            matches = re.findall(r'"path"\s+"([^"]+)"', content, re.IGNORECASE)
-            for m in matches:
-                p = Path(m.replace("\\\\", "/"))
-                if p.exists() and p not in libraries:
+        # Probe additional drive letters (C through Z) for standard library roots
+        drive_candidates = ["C", "D", "E", "F", "G", "H"]
+        for drive in drive_candidates:
+            for pattern in (f"{drive}:/SteamLibrary", f"{drive}:/Steam", f"{drive}:/Games/Steam"):
+                p = Path(pattern)
+                if p.exists() and (p / "steamapps").exists() and p not in libraries:
                     libraries.append(p)
-        except Exception as exc:
-            logger.warning(f"Error parsing Steam libraryfolders.vdf: {exc}")
 
         return libraries
 
@@ -123,7 +240,7 @@ class GameDetectorService:
                         continue
                     app_id = int(match.group(1))
 
-                    # Filter out Steamworks Common Redistributables (228980), etc.
+                    # Filter out Steamworks Common Redistributables (228980), SteamVR, etc.
                     if app_id in (228980, 250820, 1391110, 1826330):
                         continue
 
@@ -137,18 +254,7 @@ class GameDetectorService:
                     size = int(size_match.group(1)) if size_match and size_match.group(1).isdigit() else None
 
                     install_path = steamapps / "common" / installdir
-                    exe_path = None
-                    if install_path.exists() and install_path.is_dir():
-                        # Find primary .exe inside install dir
-                        exes = [
-                            f
-                            for f in install_path.glob("*.exe")
-                            if f.name.lower() not in EXCLUDED_PROCESS_NAMES
-                        ]
-                        if exes:
-                            # Prefer executable with matching game name or largest file size
-                            exes.sort(key=lambda x: x.stat().st_size, reverse=True)
-                            exe_path = str(exes[0])
+                    exe_path = find_primary_game_executable(install_path, name)
 
                     installed.append(
                         InstalledGameInfo(
@@ -163,6 +269,16 @@ class GameDetectorService:
                     logger.debug(f"Failed parsing manifest {acf.name}: {exc}")
 
         return installed
+
+    @classmethod
+    def find_installed_game_by_app_id(cls, app_id: int) -> Optional[InstalledGameInfo]:
+        """Resolves an installed Steam game by Steam App ID or any known edition alias."""
+        target_ids = KNOWN_EDITION_ALIASES.get(app_id, {app_id})
+        installed = cls.scan_installed_steam_games()
+        for g in installed:
+            if g.steam_app_id in target_ids:
+                return g
+        return None
 
     async def detect_running_game(self) -> Optional[Dict[str, Any]]:
         """Inspects running Windows processes and matches against library games with zero code injection."""

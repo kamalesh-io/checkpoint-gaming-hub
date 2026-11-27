@@ -17,6 +17,11 @@ This release resolves five specific issues discovered during real-world Windows 
 | **BUG-003** | Critical | Backend Lifecycle / Startup Handshake | Race condition where `useHealthQuery` aborted after 1 attempt before sidecar finished port binding. | **Resolved** |
 | **BUG-004** | High | IGDB Service & Error Handling | Raw Winsock `[Errno 11001]` socket error displayed directly to user on DNS/internet drops. | **Resolved** |
 | **BUG-005** | High | Global Search / Discover Page | Title bar lacked live autocomplete dropdown; disconnected from Discover state while typing. | **Resolved** |
+| **BUG-006** | Medium | Add Game / Planner UI | Browser-native `dd-mm-yyyy` input required manual typing instead of interactive calendar. | **Resolved** |
+| **BUG-007** | High | Game Detection Service | Installed Steam games across drives and cross-edition titles were not recognized automatically. | **Resolved** |
+| **BUG-008** | High | Game Launcher / IPC | Quoted executable paths failed path validation; no native GUI file picker. | **Resolved** |
+| **BUG-009** | High | SteamGridDB Artwork | CDN domain validation rejected valid image hosts and dropped CORS headers on error. | **Resolved** |
+| **BUG-010** | High | Steam Library Synchronization | Sequential O(N) IGDB queries during preview scan caused frontend request timeout. | **Resolved** |
 
 ---
 
@@ -68,14 +73,62 @@ This release resolves five specific issues discovered during real-world Windows 
   4. Integrated keyboard navigation (ArrowUp, ArrowDown, Escape to close, Enter to select).
   5. Built bidirectional state synchronization between `globalSearchQuery` in `useAppStore` and `DiscoverPage.tsx`.
 
+### BUG-006 — Date Input Requires Manual Typing
+* **Problem Statement:** Adding or editing games displayed browser-native `dd-mm-yyyy` text inputs that required manual typing without interactive calendar picking.
+* **Root Cause:** Native `<input type="date">` was used without custom styling or popover calendar picker.
+* **Resolution:**
+  1. Built a dark atmospheric `<DatePicker>` popover component (`frontend/src/components/ui/DatePicker.tsx`) matching CHECKPOINT V2 design tokens (`#161D2B/98`, `#242E42`).
+  2. Implemented month and year navigation, "Today" shortcut, "Clear Date" action, and selected date accent highlighting.
+  3. Formatted display as `DD-MM-YYYY` with ISO 8601 `YYYY-MM-DD` serialization.
+  4. Enforced date range validation ensuring planned start dates cannot exceed target completion dates.
+  5. Extracted modular date utilities into `frontend/src/utils/date.ts`.
+
+### BUG-007 — Installed Games Are Not Automatically Detected
+* **Problem Statement:** Installed Steam games on non-default drives and cross-edition titles were not recognized automatically.
+* **Root Cause:** `GameDetectorService` scanned limited locations, lacked Windows Registry path discovery, missed subfolder executables, and lacked cross-edition alias linking.
+* **Resolution:**
+  1. Added Windows Registry detection via `HKCU\Software\Valve\Steam\SteamPath` and `HKLM\SOFTWARE\WOW6432Node\Valve\Steam\InstallPath`.
+  2. Implemented drive enumeration across all mounted drive letters (`C:\`, `D:\`, `E:\`, `F:\`, etc.).
+  3. Implemented `find_primary_game_executable()` scanning install roots and engine subfolders (`bin/`, `bin/x64/`, `Binaries/Win64/`), while ignoring crash handlers and uninstallers.
+  4. Created `KNOWN_EDITION_ALIASES` linking base game AppIDs to enhanced, remastered, and GOTY releases (e.g. Metro Exodus `412020` <-> `1449560`).
+
+### BUG-008 — Game Launcher Rejects Executable Paths with Surrounding Quotation Marks
+* **Problem Statement:** Copying paths with quotation marks (e.g. `"D:\SteamLibrary\...\MetroExodus.exe"`) failed with "Target executable does not exist at ...".
+* **Root Cause:** File validation checked the string with quotes included, which Windows file APIs reject as an invalid filename.
+* **Resolution:**
+  1. Enhanced `GameLauncherService` and Rust launcher IPC to safely strip quotes (`"..."` and `'...'`) and leading/trailing whitespace.
+  2. Implemented native Windows OpenFileDialog support via Tauri IPC command `pick_executable_file`.
+  3. Added "Browse EXE" action in `LaunchConfigModal.tsx`.
+  4. Auto-populates detected local Steam executables in launch configurations when unconfigured.
+  5. Displays exact OS error messages on launch failure.
+
+### BUG-009 — SteamGridDB Artwork Update Fails
+* **Problem Statement:** Clicking "Apply Artwork" in the SteamGridDB modal triggered "Artwork update failed — Failed to fetch".
+* **Root Cause:** Domain whitelist rejected valid SteamGridDB and Steam CDN subdomains; CORS headers dropped on early rejection; query caches were not invalidated.
+* **Resolution:**
+  1. Expanded `ALLOWED_ARTWORK_DOMAINS` in `ArtworkCacheService` to encompass all SteamGridDB and Steam CDN domains.
+  2. Injected CORS headers on early security rejection and exception handler responses in FastAPI.
+  3. Configured `/api/v1/artwork/select` to retain existing active artwork if remote download fails and return HTTP 502 with friendly feedback.
+  4. Enhanced `useSelectArtworkMutation` to invalidate `library.all`, `library.detail(gameId)`, `artwork.cacheStatus`, and `search.all` queries.
+
+### BUG-010 — Steam Library Synchronization Times Out
+* **Problem Statement:** Clicking "Sync Steam Library" failed with "Failed to scan Steam library — Request timed out reaching local backend".
+* **Root Cause:** `SteamSyncService.generate_import_preview()` performed sequential IGDB API queries for every unimported Steam title; with 50+ games, latency exceeded frontend's 12s timeout.
+* **Resolution:**
+  1. Eliminated sequential O(N) external IGDB searches during preview generation.
+  2. Leveraged Valve's instant 600x900 capsule CDN (`https://shared.steamstatic.com/store_item_assets/steam/apps/{app_id}/library_600x900.jpg`).
+  3. Implemented O(1) local game matching against `Game.steam_app_id`, `KNOWN_EDITION_ALIASES`, and normalized title indexing.
+  4. Automatically attaches high-resolution Steam capsule artwork to `GameArtwork` during library imports.
+  5. Increased frontend preview and import API timeouts to 60s in `steamApi.ts`.
+
 ---
 
 ## 3. Verification & Test Evidence
 
 | Suite | Component | Scope | Tests Run | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations | 32 tests | **32 / 32 Passed** |
-| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete | 12 tests | **12 / 12 Passed** |
-| **Desktop Shell** | Rust / Tauri 2.0 | HMAC-SHA256 handshake, token generator, sidecar binary | 4 tests | **4 / 4 Passed** |
+| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations, detector, launcher | 36 tests | **36 / 36 Passed** |
+| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete, datepicker | 18 tests | **18 / 18 Passed** |
+| **Desktop Shell** | Rust / Tauri 2.0 | HMAC-SHA256 handshake, token generator, sidecar binary, app id | 4 tests | **4 / 4 Passed** |
 | **Typecheck** | TypeScript | `tsc -b --noEmit` across all components and features | Whole repo | **0 Errors** |
 | **Linter** | ESLint / React Hooks | Code quality and hook dependency verification | Whole repo | **0 Warnings** |
