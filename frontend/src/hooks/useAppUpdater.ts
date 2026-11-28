@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useUpdateStore } from '@/stores/updateStore';
 import { updateService } from '@/services/updateService';
+import { isTauriRuntime } from '@/services/api';
 
 const STORAGE_KEY_LAST_SEEN_VERSION = 'checkpoint_last_seen_whats_new';
 
@@ -26,6 +27,20 @@ export function useAppUpdater() {
   const updatePreferences = useUpdateStore((s) => s.updatePreferences);
 
   const initialCheckDone = useRef(false);
+
+  // Sync actual application version from Tauri runtime
+  useEffect(() => {
+    if (isTauriRuntime()) {
+      import('@tauri-apps/api/app')
+        .then(({ getVersion }) => getVersion())
+        .then((version) => {
+          if (version) {
+            useUpdateStore.getState().setCurrentVersion(version);
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, []);
 
   useEffect(() => {
     // 1. One-time "What's New" check after major version upgrade

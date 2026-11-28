@@ -1,10 +1,10 @@
 {
   "version": "1.1.0",
   "notes": "CHECKPOINT Gaming Hub v1.1.0 \u2014 Cinematic UI V3, Procedural Web Audio Sound System & Signed Automatic Updates",
-  "pub_date": "2026-11-28T09:13:58Z",
+  "pub_date": "2026-11-28T09:52:33Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNElUL0FCcDNEY2tYTEtJTm5sa0pEaUNFVURPN1o0Z0FwS05zNFV2RXJmL1VXajQ3Z3g3K3ozRlNmandaNEpQa3dad2htaVd1ZWNheUhRSUlHUGVpZVlDaTNlM3hJaHdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1ODU3MTgxCWZpbGU6Q0hFQ0tQT0lOVCBHYW1pbmcgSHViXzEuMS4wX3g2NC1zZXR1cC5leGUJdmVyc2lvbjoxLjEuMAo0VWk1c0RmSzRmcjNFd0pVRDlTTE9QMnM4L0xKeWNIWXhNT3BtU1B6SFl0L1FLblV4R20yMVNhY1R1Vno2d2FGdGFac0s2Sk02RkhQVGpTVnNXdVZEUT09Cg==",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNElUL0FCcDNEY20rSXBuZ1djeHdFT3BYRFRwY1I3K3NVM21ZOTloVGNtR0pnQ256YzR3SUgvU051ZGVacnEzTVV3eFBraWlSVHRBeE5ENTl6TmRTYmtsQ3k3MTN2Z2drPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1ODU5NTQxCWZpbGU6Q0hFQ0tQT0lOVCBHYW1pbmcgSHViXzEuMS4wX3g2NC1zZXR1cC5leGUJdmVyc2lvbjoxLjEuMApZMzYvdUdQUG1uemR0clMrUGk5cC9aZHRPeXpJd2JFMFJ3dzcyUmJYbGhpT2w0eXlBTUY0a29PTGFMMmVFUHRIVzJDT05aVEhNRWZjQTJZamtvN1VEQT09Cg==",
       "url": "https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/download/v1.1.0/CHECKPOINT_Gaming_Hub_1.1.0_x64-setup.exe"
     }
   }

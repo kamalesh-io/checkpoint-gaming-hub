@@ -83,6 +83,8 @@ class UpdateService {
 
           if (store.preferences.notifyAvailable) {
             soundManager.play(SoundEvent.DONE);
+            // Prompt the user with the update dialog
+            store.setDialogOpen(true);
           }
 
           // Auto-download if user enabled it in preferences
