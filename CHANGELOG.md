@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-11-28
+
+### Added
+* **Cinematic UI V3 Design System**:
+  * Redesigned desktop interface inspired by PlayStation 5, Steam, and modern living-room console aesthetics, completely eliminating the legacy navy SaaS dashboard and permanent sidebar.
+  * **Charcoal Dark Surface Palette**: Transitioned base backgrounds and elevated layers to refined charcoal tones (`#0C0F12` base, `#14181D` secondary, `#1A1F26` surface, `#1E2329` elevated, `#2A2F38` borders).
+  * **Modern Typography**: Replaced Inter/Sora with Plus Jakarta Sans (bold display headlines) and DM Sans (interface labels and body copy).
+  * **Floating Bottom Navigation Dock (`FloatingDock.tsx`)**: Replaced the permanent vertical left sidebar with a centered, translucent capsule dock (`#14181D/85` with 24px backdrop blur, active animated indicator pill, dynamic wishlist counter badge, and full spatial navigation).
+  * **Cinematic Top Bar (`CinematicTopBar.tsx`)**: Translucent top navigation bar with gradient scrim, global search (Ctrl+K), controller connection indicator, settings gear, and native Tauri window controls.
+  * **Cinematic Home Screen (`OverviewPage.tsx`)**:
+    * Full-width atmospheric hero showcase with edge-to-edge game artwork, golden atmospheric ambient gradients, and transparent game logos.
+    * "CURRENTLY PLAYING" status badge, game summary tagline, dual telemetry strip (Progress % and Hours Played), and glowing accent progress bar.
+    * PlayStation-style white solid "Play Game" action pill, translucent "Game Details", and quick options.
+    * Integrated hero carousel arrows and pagination indicators.
+    * "Continue Playing" horizontal carousel with 16:9 landscape cards, active yellow glowing border ring, centered logos, bottom telemetry pills (`▶ 42% · 38.6 h`), and "+ Add Game" shortcut.
+    * "Up Next" backlog shelf with quick access to prioritized planned titles.
+* **Procedural Web Audio Sound System**:
+  * Original PlayStation-inspired acoustic cues synthesized entirely via the Web Audio API without external audio files, third-party libraries, or network requests.
+  * Synthesizer engine (`soundManager.ts`) generating warm, subtle electronic tones:
+    * Navigation focus tick (subtle 45ms sine tick).
+    * Selection & button confirm (resonant dual-tone chime).
+    * Back & dismiss (soft descending tone).
+    * Section tab switch (airy filtered pop).
+    * Modal open & close sweeps (soft ascending and descending sweeps).
+    * Game launch (cinematic sub-bass thump and rising harmony).
+    * Trophy & milestone victory chime (majestic triad).
+  * Ambient menu audio system with gentle LFO-modulated synthesizer pad loop (disabled by default, toggleable in settings).
+  * Sound preferences store (`soundConfig.ts`) with default 35% volume, category toggles, and settings UI (`AudioSettingsSection.tsx`).
+* **Tauri 2.0 Automatic Updates & Cryptographic Signing**:
+  * Integrated official `tauri-plugin-updater` and `@tauri-apps/plugin-updater` targeting verified release endpoint at `https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/latest/download/latest.json`.
+  * Generated and configured Minisign Ed25519 asymmetric signing keypair; public key embedded in `tauri.conf.json`, private key safely kept outside git repository.
+  * Enabled `bundle.createUpdaterArtifacts` for automated signed package and `latest.json` generation.
+  * Implemented centralized `updateStore.ts` (Zustand) and `updateService.ts` supporting startup check delay, periodic 24-hour interval checks, offline resilience, and game session deferral.
+  * Built cinematic `UpdateDialog.tsx` with markdown release notes scroll, real-time download progress bar (MB, percentage, transfer speed MB/s), PlayStation buttons, and controller navigation.
+  * Added non-intrusive `ArrowUpCircle` pulsing pill in `CinematicTopBar.tsx`.
+  * Added one-time `WhatsNewModal.tsx` trigger upon major version upgrade.
+  * Added "Updates & Release" tab in `SettingsPage.tsx` with manual check trigger, channel indicator, and configurable preferences.
+  * Implemented safe migration sequence: checks active game sessions, creates online SQLite WAL snapshot (`/api/v1/backup`), and invokes native Rust command `prepare_for_update` to terminate `checkpoint-backend.exe` before updater overwrite.
+* **Official GitHub Release Pipeline**:
+  * Configured `.github/workflows/release.yml` for automated CI/CD builds on version tags.
+  * Produces signed NSIS `.exe`, `.msi`, `.sig` detached signatures, `latest.json`, and SHA-256 package checksums.
+
 ## [1.0.1] - 2026-11-27
 
 ### Fixed

@@ -188,6 +188,8 @@ async def test_steam_import_preview_fast_o1(db_session):
     ]
 
     with patch.object(service, "fetch_steam_owned_games", AsyncMock(return_value=(True, mock_games, "OK"))), \
+         patch.object(service, "get_local_manifest_games", return_value={}), \
+         patch.object(service, "get_local_steam_family_games", return_value={}), \
          patch("app.core.config.Settings.get_steam_web_api_key", return_value="dummy_key"):
         preview = await service.generate_import_preview()
 
@@ -205,4 +207,82 @@ async def test_steam_import_preview_fast_o1(db_session):
         for g in preview.new_games:
             assert "library_600x900.jpg" in g.cover_url
             assert g.already_imported is False
+
+
+@pytest.mark.asyncio
+async def test_steam_import_preview_family_sharing_detection(db_session):
+    """Verifies installed games with foreign LastOwner are detected and tagged as Family Shared."""
+    from app.models.steam import SteamAccount
+    from app.services.steam_sync import SteamSyncService
+
+    account = SteamAccount(
+        steam_id_64="76561198012345678",
+        persona_name="TestGamer",
+        is_connected=True,
+    )
+    db_session.add(account)
+    await db_session.commit()
+
+    service = SteamSyncService(db_session)
+    mock_games = [
+        {"appid": 412020, "name": "Metro Exodus", "playtime_forever": 1200, "rtime_last_played": 1700000000},
+    ]
+    mock_manifests = {
+        4348910: {"appid": 4348910, "name": "Probably Stolen", "last_owner": "76561198999999999", "playtime_forever": 0, "rtime_last_played": None},
+    }
+
+    with patch.object(service, "fetch_steam_owned_games", AsyncMock(return_value=(True, mock_games, "OK"))), \
+         patch.object(service, "get_local_manifest_games", return_value=mock_manifests), \
+         patch.object(service, "get_local_steam_family_games", return_value={}), \
+         patch("app.core.config.Settings.get_steam_web_api_key", return_value="dummy_key"):
+        preview = await service.generate_import_preview()
+
+        assert preview.total_found == 2
+        fam_game = next((g for g in preview.new_games if g.steam_app_id == 4348910), None)
+        assert fam_game is not None
+        assert fam_game.ownership_status == "Family Shared"
+
+
+@pytest.mark.asyncio
+async def test_steam_import_preview_with_local_family_discovery(db_session):
+    """Verifies uninstalled family shared games discovered from local Steam cache are included as Family Shared."""
+    from app.models.steam import SteamAccount
+    from app.services.steam_sync import SteamSyncService
+
+    account = SteamAccount(
+        steam_id_64="76561198012345678",
+        persona_name="TestGamer",
+        is_connected=True,
+    )
+    db_session.add(account)
+    await db_session.commit()
+
+    service = SteamSyncService(db_session)
+    mock_owned = [
+        {"appid": 412020, "name": "Metro Exodus", "playtime_forever": 1200, "rtime_last_played": 1700000000},
+    ]
+    mock_family = {
+        1449560: {"appid": 1449560, "name": "Metro Exodus Enhanced Edition", "playtime_forever": 799, "rtime_last_played": 1795844160},
+        1687950: {"appid": 1687950, "name": "Persona 5 Royal", "playtime_forever": 0, "rtime_last_played": None},
+    }
+
+    with patch.object(service, "fetch_steam_owned_games", AsyncMock(return_value=(True, mock_owned, "OK"))), \
+         patch.object(service, "get_local_manifest_games", return_value={}), \
+         patch.object(service, "get_local_steam_family_games", return_value=mock_family), \
+         patch("app.core.config.Settings.get_steam_web_api_key", return_value="dummy_key"):
+        preview = await service.generate_import_preview()
+
+        assert preview.total_found == 3
+        # Metro Exodus is owned
+        owned_p = next(g for g in preview.new_games if g.steam_app_id == 412020)
+        assert owned_p.ownership_status == "Owned"
+
+        # Persona 5 Royal & Metro Exodus Enhanced are Family Shared
+        p5 = next(g for g in preview.new_games if g.steam_app_id == 1687950)
+        assert p5.ownership_status == "Family Shared"
+
+        me = next(g for g in preview.new_games if g.steam_app_id == 1449560)
+        assert me.ownership_status == "Family Shared"
+        assert me.playtime_forever_minutes == 799
+
 

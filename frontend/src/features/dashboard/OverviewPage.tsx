@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Compass,
   Gamepad2,
   Layers,
@@ -20,10 +18,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
-import { IconButton } from '@/components/ui/IconButton';
 import { GameCoverSkeleton, HeroSkeleton, LandscapeCardSkeleton } from '@/components/ui/Skeleton';
 import { ArtworkSelectorModal } from '@/features/modals/ArtworkSelectorModal';
 import { UpdateProgressModal } from '@/features/modals/UpdateProgressModal';
+import { LaunchConfigModal } from '@/features/launcher/LaunchConfigModal';
+import { soundManager } from '@/audio/soundManager';
+import { SoundEvent } from '@/audio/soundEvents';
 import {
   useBacklogSummaryQuery,
   useLibraryQuery,
@@ -55,6 +55,7 @@ export function OverviewPage() {
   const [activeHeroId, setActiveHeroId] = useState<string | null>(null);
   const [progressTarget, setProgressTarget] = useState<LibraryEntryRead | null>(null);
   const [artworkTarget, setArtworkTarget] = useState<LibraryEntryRead | null>(null);
+  const [launchTarget, setLaunchTarget] = useState<LibraryEntryRead | null>(null);
 
   const entries = useMemo(
     () => (libraryQuery.data?.data ?? []).filter((e) => e.ownership_status !== 'To Buy'),
@@ -81,17 +82,29 @@ export function OverviewPage() {
   }, [entries, activeHeroId, currentlyPlaying]);
 
   const handleSelectHero = (id: string) => {
+    soundManager.playSelect();
     setActiveHeroId(id);
     setBpActiveEntryId(id);
   };
 
+  const handleHoverHero = (id: string) => {
+    if (activeHeroId !== id) {
+      setActiveHeroId(id);
+      setBpActiveEntryId(id);
+    }
+  };
+
   const stepCarousel = (direction: -1 | 1) => {
+    soundManager.playNextPage();
     if (currentlyPlaying.length === 0) return;
     const currentIdx = currentlyPlaying.findIndex((item) => item.id === heroEntry?.id);
     const safeIdx = currentIdx >= 0 ? currentIdx : 0;
     const nextIdx = (safeIdx + direction + currentlyPlaying.length) % currentlyPlaying.length;
     const next = currentlyPlaying[nextIdx];
-    if (next) handleSelectHero(next.id);
+    if (next) {
+      setActiveHeroId(next.id);
+      setBpActiveEntryId(next.id);
+    }
   };
 
   const upNext = useMemo(() => {
@@ -276,45 +289,37 @@ export function OverviewPage() {
   const stats = statsQuery.data;
 
   return (
-    <div className="space-y-9 pb-8">
-      {/* Dynamic Featured Hero */}
+    <div className="space-y-10 pb-12">
+      {/* Dynamic Featured Hero matching PlayStation 5 / V1.1.0 reference */}
       {heroEntry && (
         <CinematicHero
           entry={heroEntry}
           onViewDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
           onUpdateProgress={(e) => setProgressTarget(e)}
           onChangeArtwork={(e) => setArtworkTarget(e)}
+          onPlayGame={(e) => setLaunchTarget(e)}
+          carouselCount={currentlyPlaying.length}
+          carouselIndex={Math.max(
+            0,
+            currentlyPlaying.findIndex((item) => item.id === heroEntry.id),
+          )}
+          onPrevSlide={() => stepCarousel(-1)}
+          onNextSlide={() => stepCarousel(1)}
+          onSelectSlide={(idx) => {
+            const target = currentlyPlaying[idx];
+            if (target) handleSelectHero(target.id);
+          }}
         />
       )}
 
-      {/* Currently Playing 16:9 Carousel (Always rendered with Stitch design; empty state when 0) */}
-      <div onKeyDown={handleCarouselKeyDown}>
-        <GameShelf
-          title="Currently Playing"
-          subtitle="Select a title to preview its atmospheric theme and cinematic hero"
-          count={currentlyPlaying.length}
-          headerAction={
-            <div className="flex items-center gap-2">
-              {currentlyPlaying.length > 1 && (
-                <div className="flex items-center gap-1">
-                  <IconButton
-                    label="Previous currently playing title"
-                    variant="surface"
-                    size="sm"
-                    onClick={() => stepCarousel(-1)}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </IconButton>
-                  <IconButton
-                    label="Next currently playing title"
-                    variant="surface"
-                    size="sm"
-                    onClick={() => stepCarousel(1)}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </IconButton>
-                </div>
-              )}
+      {/* Main Shelves Container with consistent console padding */}
+      <div className="px-6 sm:px-10 lg:px-14 space-y-10">
+        {/* Continue Playing Shelf */}
+        <div onKeyDown={handleCarouselKeyDown}>
+          <GameShelf
+            title="Continue Playing"
+            count={currentlyPlaying.length}
+            headerAction={
               <Button
                 variant="ghost"
                 size="sm"
@@ -322,73 +327,88 @@ export function OverviewPage() {
               >
                 View Library
               </Button>
-            </div>
-          }
-        >
-          {currentlyPlaying.length > 0 ? (
-            currentlyPlaying.map((entry) => (
-              <LandscapeGameCard
-                key={entry.id}
-                entry={entry}
-                isActive={entry.id === heroEntry?.id}
-                onSelect={(e) => handleSelectHero(e.id)}
-                onOpenDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
-              />
-            ))
-          ) : (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full p-6 rounded-xl border border-dashed border-outline/70 bg-secondary-background/60 text-muted">
-              <div className="space-y-1">
-                <p className="text-body-md font-medium text-on-surface">
-                  No games currently marked as Playing
-                </p>
-                <p className="text-body-sm text-muted">
-                  Select a title from Up Next or My Library and set its playing status to "Currently Playing" to feature it here.
-                </p>
+            }
+          >
+            {currentlyPlaying.length > 0 ? (
+              <>
+                {currentlyPlaying.map((entry) => (
+                  <LandscapeGameCard
+                    key={entry.id}
+                    entry={entry}
+                    isActive={entry.id === heroEntry?.id}
+                    onSelect={(e) => handleSelectHero(e.id)}
+                    onHover={(e) => handleHoverHero(e.id)}
+                    onOpenDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
+                  />
+                ))}
+                {/* "+ Add Game" Card matching reference */}
+                <button
+                  type="button"
+                  data-nav-item="true"
+                  onClick={() => navigate(ROUTES.DISCOVER)}
+                  className="group relative w-[270px] sm:w-[300px] aspect-[16/9] shrink-0 overflow-hidden rounded-2xl border border-dashed border-outline/70 bg-surface/40 hover:bg-surface/70 hover:border-accent-active/60 flex flex-col items-center justify-center gap-2 text-muted hover:text-on-background transition-all duration-300 select-none"
+                >
+                  <div className="h-10 w-10 rounded-full bg-surface-elevated border border-outline/60 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Plus className="h-5 w-5 text-accent-active" />
+                  </div>
+                  <span className="text-label-md font-semibold">Add Game</span>
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full p-6 rounded-2xl border border-dashed border-outline/70 bg-surface/40 text-muted">
+                <div className="space-y-1">
+                  <p className="text-body-md font-medium text-on-surface">
+                    No games currently marked as Playing
+                  </p>
+                  <p className="text-body-sm text-muted">
+                    Select a title from Up Next or My Library and set its playing status to "Currently Playing" to feature it here.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="accent" size="sm" onClick={() => navigate(ROUTES.LIBRARY)}>
+                    Browse Library
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.DISCOVER)}>
+                    Discover Games
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button variant="accent" size="sm" onClick={() => navigate(ROUTES.LIBRARY)}>
-                  Browse Library
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.DISCOVER)}>
-                  Discover Games
-                </Button>
-              </div>
-            </div>
-          )}
-        </GameShelf>
-      </div>
+            )}
+          </GameShelf>
+        </div>
 
-      {/* Up Next Priority Shelf */}
-      {upNext.length > 0 && (
-        <GameShelf
-          title="Up Next"
-          subtitle="Planned & on-hold titles ordered by priority"
-          count={upNext.length}
-          headerAction={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(ROUTES.BACKLOG)}
-            >
-              Backlog Queue
-            </Button>
-          }
-        >
-          {upNext.map((entry) => (
-            <div key={entry.id} className="w-[172px] sm:w-[190px] shrink-0">
-              <GameCoverCard
-                entry={entry}
-                onOpenDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
-                onUpdateProgress={(e) => setProgressTarget(e)}
-                onQuickStatusChange={(e, status) =>
-                  void handleQuickStatusChange(e, status)
-                }
-                onToggleFavorite={(e) => void handleToggleFavorite(e)}
-              />
-            </div>
-          ))}
-        </GameShelf>
-      )}
+        {/* Up Next Shelf matching Reference */}
+        {upNext.length > 0 && (
+          <GameShelf
+            title="Up Next"
+            count={upNext.length}
+            headerAction={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(ROUTES.BACKLOG)}
+                className="text-muted hover:text-on-background"
+              >
+                View All &gt;
+              </Button>
+            }
+          >
+            {upNext.map((entry) => (
+              <div key={entry.id} className="w-[172px] sm:w-[190px] shrink-0">
+                <GameCoverCard
+                  entry={entry}
+                  onOpenDetails={(e) => navigate(buildGameDetailsRoute(e.id))}
+                  onHover={(e) => handleHoverHero(e.id)}
+                  onUpdateProgress={(e) => setProgressTarget(e)}
+                  onQuickStatusChange={(e, status) =>
+                    void handleQuickStatusChange(e, status)
+                  }
+                  onToggleFavorite={(e) => void handleToggleFavorite(e)}
+                />
+              </div>
+            ))}
+          </GameShelf>
+        )}
 
       {/* Two-Column Schedule + Compact Real Statistics */}
       <section className="grid gap-6 lg:grid-cols-5">
@@ -583,6 +603,7 @@ export function OverviewPage() {
           ))}
         </GameShelf>
       )}
+      </div>
 
       {/* Modals */}
       <UpdateProgressModal
@@ -597,6 +618,19 @@ export function OverviewPage() {
         initialTab="hero"
         onClose={() => setArtworkTarget(null)}
       />
+
+      {launchTarget && (
+        <LaunchConfigModal
+          open={Boolean(launchTarget)}
+          onClose={() => setLaunchTarget(null)}
+          gameId={launchTarget.game_id}
+          gameTitle={launchTarget.game.title}
+          onLaunchSuccess={() => {
+            setLaunchTarget(null);
+            soundManager.play(SoundEvent.GAME_LAUNCH);
+          }}
+        />
+      )}
     </div>
   );
 }

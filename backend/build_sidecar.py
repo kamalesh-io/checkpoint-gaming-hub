@@ -17,11 +17,16 @@ def main():
     target_exe_name = "checkpoint-backend-x86_64-pc-windows-msvc.exe"
     target_exe_path = target_bin_dir / target_exe_name
 
+    # Prefer virtual environment Python interpreter if available
+    venv_python = backend_dir / ".venv" / "Scripts" / "python.exe"
+    py_exec = str(venv_python) if venv_python.exists() else sys.executable
+
     print(f"Building CHECKPOINT standalone sidecar binary using PyInstaller...")
+    print(f"Python interpreter: {py_exec}")
     print(f"Spec file: {spec_file}")
 
     cmd = [
-        sys.executable,
+        py_exec,
         "-m",
         "PyInstaller",
         "--clean",

@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { BackendGate } from '@/components/layout/BackendGate';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { TitleBar } from '@/components/layout/TitleBar';
+import { CinematicTopBar } from '@/components/layout/CinematicTopBar';
+import { FloatingDock } from '@/components/layout/FloatingDock';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { FirstRunOnboardingModal } from '@/features/onboarding/FirstRunOnboardingModal';
 import { ActiveSessionHUD } from '@/features/sessions/ActiveSessionHUD';
 import { ActiveSessionRecoveryModal } from '@/features/sessions/ActiveSessionRecoveryModal';
-import { useHealthQuery, useLibraryQuery, useWishlistQuery } from '@/hooks/queries';
+import { UpdateDialog } from '@/components/updates/UpdateDialog';
+import { WhatsNewModal } from '@/components/updates/WhatsNewModal';
+import { useHealthQuery, useWishlistQuery, useLibraryQuery } from '@/hooks/queries';
 import { ROUTES } from '@/routes/routes';
 import { apiClient, isTauriRuntime } from '@/services/api';
 import { useAppStore } from '@/stores/appStore';
@@ -21,14 +23,12 @@ export function RootLayout() {
   const healthQuery = useHealthQuery();
   const backendOnline = Boolean(healthQuery.data && !healthQuery.isError);
 
-  const libraryQuery = useLibraryQuery({ limit: 100 }, backendOnline);
   const dedicatedWishlistQuery = useWishlistQuery({}, backendOnline);
   const legacyWishlistQuery = useLibraryQuery(
     { ownership_status: 'To Buy', limit: 100 },
     backendOnline,
   );
 
-  const libraryCount = libraryQuery.data?.meta.total;
   const wishlistCount =
     (dedicatedWishlistQuery.data?.length ?? 0) +
     (legacyWishlistQuery.data?.data?.length ?? 0);
@@ -75,6 +75,7 @@ export function RootLayout() {
   }, [setFullscreen]);
 
   const isSettingsRoute = location.pathname === ROUTES.SETTINGS;
+  const isOverview = location.pathname === ROUTES.OVERVIEW;
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem('checkpoint_onboarding_completed');
   });
@@ -85,23 +86,26 @@ export function RootLayout() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-on-background font-body">
-      <Sidebar libraryCount={libraryCount} wishlistCount={wishlistCount} />
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background text-on-background font-body select-none">
+      {/* V3 Cinematic Translucent Top Bar */}
+      <CinematicTopBar backendOnline={backendOnline} />
 
-      <div className="flex flex-1 min-w-0 flex-col overflow-hidden">
-        <TitleBar backendOnline={backendOnline} />
+      {/* Main Content Area - Full Bleed on Overview, Padded on other screens */}
+      <main
+        id="checkpoint-main-viewport"
+        className={`flex-1 overflow-y-auto overflow-x-hidden ${
+          isOverview ? 'pt-0 pb-32' : 'pt-20 pb-32 px-5 sm:px-7 lg:px-9'
+        }`}
+      >
+        <div className={`mx-auto w-full ${isOverview ? 'max-w-none' : 'max-w-[1600px]'}`}>
+          <BackendGate isSettingsRoute={isSettingsRoute}>
+            <Outlet />
+          </BackendGate>
+        </div>
+      </main>
 
-        <main
-          id="checkpoint-main-viewport"
-          className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-6 sm:px-7 lg:px-9"
-        >
-          <div className="mx-auto w-full max-w-[1600px]">
-            <BackendGate isSettingsRoute={isSettingsRoute}>
-              <Outlet />
-            </BackendGate>
-          </div>
-        </main>
-      </div>
+      {/* V3 Floating Navigation Dock */}
+      <FloatingDock wishlistCount={wishlistCount} />
 
       <ActiveSessionHUD />
       <ActiveSessionRecoveryModal />
@@ -109,6 +113,8 @@ export function RootLayout() {
         open={showOnboarding}
         onClose={handleCloseOnboarding}
       />
+      <UpdateDialog />
+      <WhatsNewModal />
       <ToastViewport />
     </div>
   );

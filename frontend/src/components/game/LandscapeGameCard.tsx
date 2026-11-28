@@ -1,22 +1,31 @@
-import { ArrowUpRight } from 'lucide-react';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { OwnershipStatusBadge, PlayingStatusBadge } from '@/components/ui/StatusBadge';
-import { cn } from '@/utils/cn';
+import { Play } from 'lucide-react';
 import type { LibraryEntryRead } from '@/types';
+import { formatHoursLogged } from '@/utils/format';
 import { GameArtwork } from './GameArtwork';
+import { GameLogo } from './GameLogo';
+import { cn } from '@/utils/cn';
 
 export interface LandscapeGameCardProps {
   entry: LibraryEntryRead;
   isActive?: boolean;
   onSelect: (entry: LibraryEntryRead) => void;
+  onHover?: (entry: LibraryEntryRead) => void;
   onOpenDetails?: (entry: LibraryEntryRead) => void;
   className?: string;
 }
 
+/**
+ * 16:9 Console Game Card matching the "Continue Playing" shelf in V1.1.0 reference:
+ * - Active glowing yellow/accent outer ring
+ * - Landscape artwork
+ * - Game logo / display title centered
+ * - Pill badge at bottom: ▶ {progress}% · {hours} h
+ */
 export function LandscapeGameCard({
   entry,
   isActive = false,
   onSelect,
+  onHover,
   onOpenDetails,
   className,
 }: LandscapeGameCardProps) {
@@ -26,6 +35,8 @@ export function LandscapeGameCard({
     entry.game.artworks.find((a) => a.asset_type === 'hero')?.remote_url ??
     null;
 
+  const hoursLoggedText = formatHoursLogged(entry.hours_played);
+
   return (
     <div
       role="button"
@@ -33,6 +44,8 @@ export function LandscapeGameCard({
       data-nav-item="true"
       aria-pressed={isActive}
       onClick={() => onSelect(entry)}
+      onMouseEnter={() => onHover?.(entry)}
+      onFocus={() => onHover?.(entry)}
       onDoubleClick={() => onOpenDetails?.(entry)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -41,11 +54,11 @@ export function LandscapeGameCard({
         }
       }}
       className={cn(
-        'group relative w-[290px] sm:w-[320px] shrink-0 overflow-hidden rounded-xl border text-left cursor-pointer checkpoint-nav-card',
-        'transition-all duration-card-hover ease-card-hover bg-secondary-background',
+        'group relative w-[270px] sm:w-[300px] shrink-0 overflow-hidden rounded-2xl text-left cursor-pointer checkpoint-nav-card select-none',
+        'transition-all duration-300 ease-out bg-surface',
         isActive
-          ? 'border-accent-active ring-2 ring-accent-active shadow-2xl checkpoint-accent-glow -translate-y-0.5'
-          : 'border-outline/70 hover:border-outline hover:-translate-y-0.5 shadow-card',
+          ? 'border-2 border-accent-active shadow-[0_0_24px_rgba(var(--accent-active-rgb),0.55)] scale-[1.02]'
+          : 'border border-outline/70 hover:border-outline hover:scale-[1.01] shadow-card',
         className,
       )}
     >
@@ -56,62 +69,49 @@ export function LandscapeGameCard({
           alt={entry.game.title}
           aspect="landscape"
           className="h-full w-full"
-          imgClassName="transition-transform duration-300 group-hover:scale-[1.04]"
+          imgClassName="transition-transform duration-300 group-hover:scale-105"
         />
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/55 to-transparent" />
+        {/* Dual dark scrims for legibility */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/20" />
 
-        {/* Top badges */}
-        <div className="absolute inset-x-3 top-2.5 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="rounded-md bg-background/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-medium text-on-surface border border-outline/60">
-              {entry.platform}
+        {/* Top-left Ownership Badge */}
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 pointer-events-none">
+          {entry.ownership_status === 'Family Shared' && (
+            <span className="rounded-md bg-cyan-500/35 backdrop-blur-md px-1.5 py-0.5 text-[10px] font-bold text-cyan-200 border border-cyan-400/50 shadow-sm">
+              Fam
             </span>
-            {isActive && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-accent-active/20 border border-accent-active/60 px-2 py-0.5 text-[11px] font-semibold text-accent-active backdrop-blur-md">
-                <span className="h-1.5 w-1.5 rounded-full bg-accent-active animate-pulse" />
-                Active
-              </span>
-            )}
-          </div>
-          {onOpenDetails && (
-            <button
-              type="button"
-              data-nav-item="true"
-              aria-label={`Open ${entry.game.title} details`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenDetails(entry);
-              }}
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-background/80 backdrop-blur-md border border-outline/60 text-muted hover:text-on-background hover:border-accent-active opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all"
-            >
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
+          )}
+          {entry.ownership_status === 'Owned' && (
+            <span className="rounded-md bg-emerald-500/30 backdrop-blur-md px-1.5 py-0.5 text-[10px] font-bold text-emerald-200 border border-emerald-400/40 shadow-sm">
+              Owned
+            </span>
           )}
         </div>
 
-        {/* Bottom Overlay Content */}
-        <div className="absolute inset-x-0 bottom-0 p-3.5 space-y-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <PlayingStatusBadge status={entry.playing_status} size="sm" />
-            <OwnershipStatusBadge ownership={entry.ownership_status} size="sm" />
+        {/* Centered Game Logo / Title */}
+        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+          <GameLogo
+            logoUrl={entry.artwork?.logo_url}
+            title={entry.game.title}
+            size="md"
+            className="max-h-12 max-w-[200px]"
+            fallbackClassName="text-headline-md font-bold text-center text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)]"
+          />
+        </div>
+
+        {/* Bottom Telemetry Pill: ▶ 42% · 38.6 h */}
+        <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-white/90 border border-white/10">
+            <Play className="h-2.5 w-2.5 fill-white text-white shrink-0" />
+            <span className="tabular-nums">{Math.round(entry.progress_pct)}%</span>
+            <span className="text-white/40">·</span>
+            <span className="tabular-nums">{hoursLoggedText}</span>
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <h3
-              className={cn(
-                'font-headline text-headline-sm truncate transition-colors',
-                isActive ? 'text-accent-active' : 'text-on-background group-hover:text-accent-active',
-              )}
-            >
-              {entry.game.title}
-            </h3>
-            <span className="tabular-nums text-[12px] font-medium text-muted shrink-0">
-              {entry.progress_pct > 0 ? `${Math.round(entry.progress_pct)}%` : 'In Progress'}
-            </span>
-          </div>
-
-          <ProgressBar value={entry.progress_pct} height="xs" />
+          {entry.is_favorite && (
+            <span className="h-2 w-2 rounded-full bg-accent-active shadow-[0_0_6px_var(--accent-active)]" />
+          )}
         </div>
       </div>
     </div>

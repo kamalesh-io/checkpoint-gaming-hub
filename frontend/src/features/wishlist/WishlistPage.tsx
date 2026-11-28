@@ -327,7 +327,7 @@ export function WishlistPage() {
                 className="flex gap-4 rounded-2xl border border-outline/75 bg-secondary-background/85 p-4 shadow-card hover:border-accent-primary/60 transition-all focus:outline-none focus:ring-2 focus:ring-accent-primary"
               >
                 {/* Artwork */}
-                <div className="w-24 shrink-0 overflow-hidden rounded-xl border border-outline/70 bg-surface-dark">
+                <div className="w-28 sm:w-32 aspect-[2/3] shrink-0 overflow-hidden rounded-xl border border-outline/70 bg-surface-dark shadow-md">
                   {coverUrl ? (
                     <img src={coverUrl} alt={item.game.title} className="h-full w-full object-cover" />
                   ) : (
@@ -340,18 +340,28 @@ export function WishlistPage() {
                 {/* Details */}
                 <div className="min-w-0 flex-1 flex flex-col justify-between gap-2">
                   <div>
-                    <div className="flex items-start justify-between gap-1">
+                    <div className="flex items-start justify-between gap-2">
                       <h2 className="font-headline text-headline-sm font-bold text-on-background leading-snug line-clamp-1">
                         {item.game.title}
                       </h2>
-                      <IconButton
-                        label={`Remove ${item.game.title}`}
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteDedicated(item)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </IconButton>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <IconButton
+                          label={`Edit ${item.game.title} target`}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditTarget(item)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </IconButton>
+                        <IconButton
+                          label={`Remove ${item.game.title}`}
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteDedicated(item)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconButton>
+                      </div>
                     </div>
 
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -471,15 +481,6 @@ export function WishlistPage() {
                       }}
                     >
                       Move to Backlog
-                    </Button>
-                    <Button
-                      data-nav-item="true"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditTarget(item)}
-                    >
-                      <Edit2 className="mr-1.5 h-3.5 w-3.5" />
-                      Edit Target
                     </Button>
                   </div>
                 </div>

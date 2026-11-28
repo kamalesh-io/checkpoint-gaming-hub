@@ -8,6 +8,7 @@ import { OverviewPage } from '@/features/dashboard/OverviewPage';
 import { DiscoverPage } from '@/features/discover/DiscoverPage';
 import { GameDetailsPage } from '@/features/game-details/GameDetailsPage';
 import { JournalPage } from '@/features/journal/JournalPage';
+import { LogViewerPage } from '@/features/logs/LogViewerPage';
 import { MyLibraryPage } from '@/features/library/MyLibraryPage';
 import { PlannerPage } from '@/features/planner/PlannerPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
@@ -31,6 +32,7 @@ export function AppRouter() {
         <Route path={ROUTES.JOURNAL} element={<JournalPage />} />
         <Route path={ROUTES.STATISTICS} element={<StatisticsPage />} />
         <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+        <Route path={ROUTES.LOGS} element={<LogViewerPage />} />
         <Route path={ROUTES.GAME_DETAILS} element={<GameDetailsPage />} />
         <Route path="*" element={<Navigate to={ROUTES.OVERVIEW} replace />} />
       </Route>
@@ -45,6 +47,7 @@ export function AppRouter() {
         <Route path="collections" element={<CollectionsPage />} />
         <Route path="wishlist" element={<WishlistPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="logs" element={<LogViewerPage />} />
         <Route path="games/:id" element={<GameDetailsPage />} />
         <Route path="*" element={<Navigate to={ROUTES.BIG_PICTURE} replace />} />
       </Route>

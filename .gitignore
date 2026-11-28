@@ -89,6 +89,11 @@ src-tauri/target/
 src-tauri/binaries/*.exe
 !src-tauri/binaries/.gitkeep
 
+# Release artifacts & packages
+release_artifacts/
+*.setup.exe
+CHECKPOINT_Setup*.exe
+
 # Test artifacts & Logs
 test_appdata_standalone*/
 *.log
@@ -105,3 +110,10 @@ ehthumbs.db
 *.swp
 *.swo
 *~
+
+# Cryptographic Update Signing Keys & Signatures (NEVER COMMIT)
+*.key
+*.key.pub
+*.sig
+checkpoint_updater*
+scratch/

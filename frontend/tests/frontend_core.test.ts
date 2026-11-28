@@ -55,7 +55,7 @@ test('applyCssAccentVariables writes CSS custom properties onto document root', 
   applyCssAccentVariables(gold);
 
   assert.equal(props.get('--accent-active'), '#E0B45A');
-  assert.equal(props.get('--accent-active-ink'), '#111722');
+  assert.equal(props.get('--accent-active-ink'), '#0C0F12');
   assert.equal(props.get('--accent-active-rgb'), '224, 180, 90');
 });
 

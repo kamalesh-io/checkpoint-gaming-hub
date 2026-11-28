@@ -60,8 +60,14 @@ async def add_to_wishlist(
     # Check if already in library
     lib_stmt = select(LibraryEntry).join(Game, LibraryEntry.game_id == Game.id).where(Game.igdb_id == payload.igdb_id)
     lib_res = await db.execute(lib_stmt)
-    if lib_res.scalar_one_or_none():
-        raise DuplicateEntityException(f"Game with IGDB ID {payload.igdb_id} is already in your personal library.")
+    existing_lib = lib_res.scalar_one_or_none()
+    if existing_lib:
+        if existing_lib.ownership_status == "To Buy":
+            # Clean up mistaken library entry so it becomes a pure wishlist item
+            await db.delete(existing_lib)
+            await db.flush()
+        else:
+            raise DuplicateEntityException(f"Game with IGDB ID {payload.igdb_id} is already in your personal library.")
 
     # Check if already in wishlist
     wl_stmt = select(WishlistItem).join(Game, WishlistItem.game_id == Game.id).where(Game.igdb_id == payload.igdb_id)

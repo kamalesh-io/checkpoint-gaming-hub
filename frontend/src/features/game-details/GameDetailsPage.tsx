@@ -689,7 +689,7 @@ export function GameDetailsPage() {
               className="h-full w-full"
               style={{
                 background:
-                  'radial-gradient(circle at 75% 25%, rgba(var(--accent-active-rgb), 0.24), transparent 58%), linear-gradient(135deg, #1B2636 0%, #111722 100%)',
+                  'radial-gradient(circle at 75% 25%, rgba(var(--accent-active-rgb), 0.24), transparent 58%), linear-gradient(135deg, #1A1F26 0%, #0C0F12 100%)',
               }}
             />
           )}

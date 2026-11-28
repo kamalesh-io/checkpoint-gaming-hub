@@ -4,15 +4,15 @@
 
 :root {
   color-scheme: dark;
-  --checkpoint-bg: #111722;
-  --checkpoint-sidebar: #151d2a;
-  --checkpoint-surface: #222e40;
-  --checkpoint-surface-elevated: #2b384b;
+  --checkpoint-bg: #0C0F12;
+  --checkpoint-sidebar: #10141A;
+  --checkpoint-surface: #1A1F26;
+  --checkpoint-surface-elevated: #1E2329;
   --checkpoint-primary: #66b8ff;
-  --checkpoint-text: #f4f7fc;
-  --checkpoint-muted: #a8b5c7;
+  --checkpoint-text: #F5F5F7;
+  --checkpoint-muted: #A7ABB4;
   --accent-active: #66b8ff;
-  --accent-active-ink: #111722;
+  --accent-active-ink: #0C0F12;
   --accent-active-rgb: 102, 184, 255;
 }
 
@@ -23,7 +23,7 @@ body,
   min-height: 100%;
   background-color: var(--checkpoint-bg);
   color: var(--checkpoint-text);
-  font-family: 'Inter Variable', 'Inter', sans-serif;
+  font-family: 'DM Sans Variable', 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -46,30 +46,42 @@ textarea,
     font-variant-numeric: tabular-nums;
   }
 
+  /* V3 Translucent Glass Surface */
   .checkpoint-glass {
-    background: rgba(21, 29, 42, 0.78);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(44, 57, 77, 0.65);
+    background: rgba(20, 24, 29, 0.78);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(42, 47, 56, 0.65);
   }
 
+  /* V3 Cinematic Hero Scrims */
   .checkpoint-hero-scrim-x {
     background: linear-gradient(
       90deg,
-      rgba(17, 23, 34, 0.96) 0%,
-      rgba(17, 23, 34, 0.8) 38%,
-      rgba(17, 23, 34, 0.3) 68%,
-      rgba(17, 23, 34, 0.12) 100%
+      rgba(12, 15, 18, 0.96) 0%,
+      rgba(12, 15, 18, 0.80) 35%,
+      rgba(12, 15, 18, 0.30) 60%,
+      rgba(12, 15, 18, 0.05) 100%
     );
   }
 
   .checkpoint-hero-scrim-y {
     background: linear-gradient(
       180deg,
-      rgba(17, 23, 34, 0.24) 0%,
-      rgba(17, 23, 34, 0) 42%,
-      rgba(17, 23, 34, 0.9) 82%,
-      #111722 100%
+      rgba(12, 15, 18, 0.15) 0%,
+      rgba(12, 15, 18, 0) 35%,
+      rgba(12, 15, 18, 0.85) 78%,
+      #0C0F12 100%
+    );
+  }
+
+  /* V3 Top Bar Fade */
+  .checkpoint-topbar-scrim {
+    background: linear-gradient(
+      180deg,
+      rgba(12, 15, 18, 0.80) 0%,
+      rgba(12, 15, 18, 0.40) 60%,
+      rgba(12, 15, 18, 0) 100%
     );
   }
 
@@ -131,31 +143,31 @@ textarea,
 .checkpoint-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(34, 46, 64, 0.7) 25%,
-    rgba(43, 56, 75, 0.95) 50%,
-    rgba(34, 46, 64, 0.7) 75%
+    rgba(26, 31, 38, 0.7) 25%,
+    rgba(30, 35, 41, 0.95) 50%,
+    rgba(26, 31, 38, 0.7) 75%
   );
   background-size: 200% 100%;
   animation: checkpoint-shimmer 1.6s infinite linear;
 }
 
-/* Custom Atmospheric Scrollbar */
+/* Custom Atmospheric Scrollbar — V3 Charcoal */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #151d2a;
+  background: #10141A;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2b384b;
+  background: #2A2F38;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4b63;
+  background: #3A4048;
 }
 
 /* Date picker dark color-scheme polish */

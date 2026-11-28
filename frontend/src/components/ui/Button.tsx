@@ -1,5 +1,7 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { soundManager } from '@/audio/soundManager';
+import { SoundEvent } from '@/audio/soundEvents';
 import { cn } from '@/utils/cn';
 
 export type ButtonVariant = 'accent' | 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -50,6 +52,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const isDisabled = Boolean(disabled || isLoading);
 
+    const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
+      soundManager.play(SoundEvent.BUTTON_CLICK);
+      props.onClick?.(e);
+    };
+
     return (
       <button
         ref={ref}
@@ -57,6 +64,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         data-nav-item="true"
         disabled={isDisabled}
         aria-busy={isLoading || undefined}
+        onClick={handleClick}
         className={cn(
           'inline-flex items-center justify-center whitespace-nowrap select-none transition-all duration-state-change ease-state-change',
           'disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',

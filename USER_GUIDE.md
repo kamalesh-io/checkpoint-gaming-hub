@@ -164,7 +164,21 @@ CHECKPOINT automatically tracks your gaming sessions without requiring manual st
 
 ---
 
-## 14. Troubleshooting & FAQ
+## 14. Automatic Updates & Software Maintenance
+
+Starting with version 1.1.0, CHECKPOINT features built-in, tamper-proof automatic software updates:
+* **Cryptographic Verification**: All update packages are signed using Minisign Ed25519 cryptography to guarantee origin authenticity.
+* **Notification Indicator**: An update badge (`ArrowUpCircle`) pulses in the top navigation bar when a new release is available.
+* **Update Preferences**: Configure update behavior under **Settings** $\rightarrow$ **Updates & Release**:
+  * **Auto-check on startup**: Automatically checks GitHub Releases for new versions.
+  * **Check Frequency**: Choose between startup checks or periodic intervals (6h, 12h, 24h, 48h).
+  * **Auto-Download**: Download update packages silently in the background.
+  * **Defer While Gaming**: Prevents notifications or updates while an active gaming session is in progress.
+* **Safe Installation**: Before applying updates, CHECKPOINT automatically generates a pre-migration SQLite safety backup and shuts down background services cleanly to avoid Windows file locks.
+
+---
+
+## 15. Troubleshooting & FAQ
 
 **Q: Why does Windows SmartScreen warn me when running the installer?**  
 A: CHECKPOINT is open-source software and is not signed with an enterprise commercial certificate. The software is completely safe and local-first. Click "More info" and "Run anyway".

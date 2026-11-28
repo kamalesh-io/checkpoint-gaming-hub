@@ -309,3 +309,27 @@ async def shutdown_system():
         import asyncio
         asyncio.get_running_loop().call_soon(_shutdown_trigger)
     return ShutdownResponse(status="shutting_down")
+
+
+@router.get("/logs")
+async def get_system_logs(
+    level: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 500,
+):
+    """Retrieves live in-memory logs formatted for the frontend Log Viewer."""
+    from app.core.logging import log_buffer
+    logs = log_buffer.get_logs(level=level, search=search, limit=limit)
+    return {
+        "total": len(logs),
+        "buffer_total": log_buffer.total_count,
+        "logs": logs,
+    }
+
+
+@router.delete("/logs")
+async def clear_system_logs():
+    """Clears the live in-memory log buffer."""
+    from app.core.logging import log_buffer
+    log_buffer.clear()
+    return {"status": "cleared"}

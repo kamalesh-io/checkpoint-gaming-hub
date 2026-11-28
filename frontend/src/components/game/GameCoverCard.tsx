@@ -19,6 +19,7 @@ import { GameArtwork } from './GameArtwork';
 export interface GameCoverCardProps {
   entry: LibraryEntryRead;
   onOpenDetails: (entry: LibraryEntryRead) => void;
+  onHover?: (entry: LibraryEntryRead) => void;
   onUpdateProgress?: (entry: LibraryEntryRead) => void;
   onQuickStatusChange?: (entry: LibraryEntryRead, status: PlayingStatus) => void;
   onToggleFavorite?: (entry: LibraryEntryRead) => void;
@@ -30,6 +31,7 @@ export interface GameCoverCardProps {
 export function GameCoverCard({
   entry,
   onOpenDetails,
+  onHover,
   onUpdateProgress,
   onQuickStatusChange,
   onToggleFavorite,
@@ -116,6 +118,8 @@ export function GameCoverCard({
         tabIndex={0}
         data-nav-item="true"
         onClick={() => onOpenDetails(entry)}
+        onMouseEnter={() => onHover?.(entry)}
+        onFocus={() => onHover?.(entry)}
         onContextMenu={openContextAt}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -145,10 +149,22 @@ export function GameCoverCard({
           />
 
           {/* Top Floating Pills */}
-          <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-2">
-            <span className="rounded-md bg-background/80 backdrop-blur-md px-2 py-0.5 text-[11px] font-medium text-on-surface border border-outline/60 truncate max-w-[110px]">
-              {entry.platform}
-            </span>
+          <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex items-start justify-between gap-1.5">
+            <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-36px)]">
+              <span className="rounded-md bg-background/85 backdrop-blur-md px-1.5 py-0.5 text-[10px] font-medium text-on-surface border border-outline/60 truncate">
+                {entry.platform}
+              </span>
+              {entry.ownership_status === 'Family Shared' && (
+                <span className="rounded-md bg-cyan-500/25 backdrop-blur-md px-1.5 py-0.5 text-[10px] font-bold text-cyan-300 border border-cyan-400/50 shadow-sm">
+                  Fam
+                </span>
+              )}
+              {entry.ownership_status === 'Owned' && (
+                <span className="rounded-md bg-emerald-500/20 backdrop-blur-md px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-400/40 shadow-sm">
+                  Owned
+                </span>
+              )}
+            </div>
 
             <button
               type="button"

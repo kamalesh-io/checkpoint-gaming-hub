@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { useAddGameMutation } from '@/hooks/queries';
+import { useCreateWishlistItemMutation } from '@/hooks/queries/usePhase5Queries';
 import { CheckpointApiError } from '@/services/api';
 import { useToastStore } from '@/stores/toastStore';
+import { soundManager } from '@/audio/soundManager';
 import {
   COMPLETION_GOALS,
   OWNERSHIP_STATUSES,
@@ -70,6 +72,7 @@ function AddGameForm({
   onPendingChange,
 }: AddGameFormProps) {
   const addMutation = useAddGameMutation();
+  const createWishlistMutation = useCreateWishlistItemMutation();
   const addToast = useToastStore((s) => s.addToast);
 
   const resolvedPlatforms = details?.platforms ?? searchResult.platforms ?? [];
@@ -120,6 +123,25 @@ function AddGameForm({
 
     try {
       onPendingChange(true);
+
+      // Decouple Wishlist from Library: "To Buy" status records game to dedicated Wishlist items
+      if (ownershipStatus === 'To Buy') {
+        await createWishlistMutation.mutateAsync({
+          igdb_id: searchResult.igdb_id,
+          priority,
+          notes: notes.trim() || undefined,
+        });
+
+        soundManager.playDone();
+        addToast({
+          type: 'success',
+          title: 'Added to Wishlist',
+          description: `${title} (${priority} Priority) tracked on your Wishlist.`,
+        });
+        onClose();
+        return;
+      }
+
       const created = await addMutation.mutateAsync({
         igdb_id: searchResult.igdb_id,
         playing_status: playingStatus,
@@ -135,9 +157,10 @@ function AddGameForm({
         notes: notes.trim(),
       });
 
+      soundManager.playDone();
       addToast({
         type: 'success',
-        title: ownershipStatus === 'To Buy' ? 'Added to Wishlist' : 'Added to My Library',
+        title: 'Added to My Library',
         description: `${created.game.title} (${created.playing_status} · ${created.ownership_status})`,
       });
       onClose();
@@ -146,10 +169,18 @@ function AddGameForm({
       if (err instanceof CheckpointApiError && err.isDuplicateError) {
         setDuplicateConflict(true);
         onDuplicateChange(true);
-        setFormError(`${title} is already in your personal library.`);
+        setFormError(
+          ownershipStatus === 'To Buy'
+            ? `${title} is already on your wishlist.`
+            : `${title} is already in your personal library.`
+        );
       } else {
         setFormError(
-          err instanceof CheckpointApiError ? err.message : 'Unable to import game from IGDB.',
+          err instanceof CheckpointApiError
+            ? err.message
+            : ownershipStatus === 'To Buy'
+              ? 'Unable to add game to wishlist.'
+              : 'Unable to import game from IGDB.'
         );
       }
     } finally {

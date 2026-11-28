@@ -1,0 +1,136 @@
+name: Official Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag Name (e.g. v1.1.0)'
+        required: true
+        default: 'v1.1.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Signed Windows Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pytest pytest-asyncio
+
+      - name: Run Backend Tests
+        working-directory: backend
+        env:
+          APP_ENV: test
+          CHECKPOINT_AUTH_TOKEN: test_ephemeral_token_1234567890abcdef
+          PYTHONPATH: .
+        run: |
+          python -m pytest -v
+
+      - name: Compile PyInstaller Backend Sidecar Binary
+        run: |
+          python backend/build_sidecar.py
+          if (-not (Test-Path "src-tauri/binaries/checkpoint-backend-x86_64-pc-windows-msvc.exe")) {
+            throw "Sidecar binary missing from src-tauri/binaries!"
+          }
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run Frontend Quality & Verification Tests
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run test
+          npm run build
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Dependency Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Run Rust Tests
+        working-directory: src-tauri
+        run: cargo test --verbose
+
+      - name: Build Tauri Desktop Application & Signed Updater Bundles
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          node frontend/node_modules/@tauri-apps/cli/tauri.js build
+
+      - name: Compute Checksums and Organize Release Artifacts
+        id: artifacts
+        run: |
+          $distDir = "release_artifacts"
+          New-Item -ItemType Directory -Path $distDir -Force | Out-Null
+          
+          # Collect bundle files
+          Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*.exe" | Copy-Item -Destination $distDir -Force
+          Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*.sig" -ErrorAction SilentlyContinue | Copy-Item -Destination $distDir -Force
+          Get-ChildItem -Path "src-tauri/target/release/bundle/msi/*.msi" -ErrorAction SilentlyContinue | Copy-Item -Destination $distDir -Force
+          Get-ChildItem -Path "src-tauri/target/release/bundle/msi/*.sig" -ErrorAction SilentlyContinue | Copy-Item -Destination $distDir -Force
+          
+          # Copy latest.json updater manifest
+          if (Test-Path "src-tauri/target/release/bundle/latest.json") {
+            Copy-Item "src-tauri/target/release/bundle/latest.json" -Destination $distDir -Force
+          }
+          
+          # Generate SHA256 checksums
+          Set-Location $distDir
+          $checksums = Get-ChildItem -File | ForEach-Object {
+            $hash = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)"
+          }
+          $checksums | Set-Content -Path "SHA256SUMS.txt" -Encoding utf8
+          Set-Location ..
+          
+          Write-Host "Prepared Release Artifacts:"
+          Get-ChildItem $distDir | Select-Object Name, Length
+
+      - name: Create GitHub Release & Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.tag_name }}
+          name: "CHECKPOINT Gaming Hub ${{ github.ref_name || inputs.tag_name }} — Cinematic UI V3 & Sound Experience"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            release_artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

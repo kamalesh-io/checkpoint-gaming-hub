@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { AddGameModal } from '@/features/modals/AddGameModal';
+import { AddToWishlistModal } from '@/features/modals/AddToWishlistModal';
 import { useIgdbGameDetailsQuery, useIgdbSearchQuery } from '@/hooks/queries';
 import { useDebounce } from '@/hooks/useDebounce';
 import { CONTROLLER_CUSTOM_EVENT } from '@/hooks/useSpatialNavigation';
@@ -28,6 +29,7 @@ export function BigPictureDiscoverPage() {
 
   const [queryText, setQueryText] = useState('');
   const [selectedIgdbId, setSelectedIgdbId] = useState<number | null>(null);
+  const [wishlistTarget, setWishlistTarget] = useState<IGDBSearchResultItem | null>(null);
   const [modalTarget, setModalTarget] = useState<{
     item: IGDBSearchResultItem;
     defaultOwnership: OwnershipStatus;
@@ -279,9 +281,7 @@ export function BigPictureDiscoverPage() {
                       variant="secondary"
                       size="lg"
                       leftIcon={<ShoppingBag className="h-4 w-4" />}
-                      onClick={() =>
-                        setModalTarget({ item: activeResult, defaultOwnership: 'To Buy' })
-                      }
+                      onClick={() => setWishlistTarget(activeResult)}
                     >
                       Add to Wishlist
                     </Button>
@@ -301,6 +301,12 @@ export function BigPictureDiscoverPage() {
         defaultOwnershipStatus={modalTarget?.defaultOwnership ?? 'Unknown'}
         onAdded={(created) => navigate(`${ROUTES.BIG_PICTURE}/games/${created.id}`)}
         onOpenExisting={(entryId) => navigate(`${ROUTES.BIG_PICTURE}/games/${entryId}`)}
+      />
+
+      <AddToWishlistModal
+        open={Boolean(wishlistTarget)}
+        game={wishlistTarget}
+        onClose={() => setWishlistTarget(null)}
       />
     </div>
   );

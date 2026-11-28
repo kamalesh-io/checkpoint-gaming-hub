@@ -14,6 +14,7 @@ import {
 } from '@/hooks/queries';
 import { CheckpointApiError } from '@/services/api';
 import { useToastStore } from '@/stores/toastStore';
+import { soundManager } from '@/audio/soundManager';
 import type { LibraryEntryRead, SteamGridDBItem } from '@/types';
 import { cn } from '@/utils/cn';
 
@@ -83,6 +84,7 @@ function ArtworkSelectorBody({
     ) ?? entry.game.artworks.find((a) => a.asset_type === activeTab);
 
   const handleTabChange = (nextTab: ArtworkTab) => {
+    soundManager.playClick();
     setActiveTab(nextTab);
     setSelectedItem(null);
     setVisibleCount(INITIAL_VISIBLE_COUNT);
@@ -105,6 +107,7 @@ function ArtworkSelectorBody({
         height: selectedItem.height,
         author: selectedItem.author,
       });
+      soundManager.playDone();
       addToast({
         type: 'success',
         title: 'Artwork updated',
@@ -133,6 +136,7 @@ function ArtworkSelectorBody({
         asset_type: activeTab,
         steamgriddb_url: defaultCandidate.remote_url,
       });
+      soundManager.playDone();
       addToast({
         type: 'info',
         title: 'Default artwork restored',
@@ -219,7 +223,10 @@ function ArtworkSelectorBody({
                   key={item.id}
                   type="button"
                   data-nav-item="true"
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => {
+                    soundManager.playSelect();
+                    setSelectedItem(item);
+                  }}
                   className={cn(
                     'group relative flex flex-col overflow-hidden rounded-xl border text-left transition-all duration-150',
                     isSelected
@@ -236,7 +243,7 @@ function ArtworkSelectorBody({
                         ? 'aspect-[2/3]'
                         : activeTab === 'hero'
                           ? 'aspect-[16/9]'
-                          : 'aspect-[16/9] bg-[#111722] p-4 flex items-center justify-center',
+                          : 'aspect-[16/9] bg-[#0C0F12] p-4 flex items-center justify-center',
                     )}
                   >
                     {activeTab === 'logo' ? (
@@ -294,7 +301,10 @@ function ArtworkSelectorBody({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setVisibleCount((c) => c + INITIAL_VISIBLE_COUNT)}
+                onClick={() => {
+                  soundManager.playNextPage();
+                  setVisibleCount((c) => c + INITIAL_VISIBLE_COUNT);
+                }}
               >
                 Load More ({itemsForTab.length - visibleCount} remaining)
               </Button>

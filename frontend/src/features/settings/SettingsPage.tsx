@@ -1,5 +1,6 @@
-import { useState, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import {
+  ArrowUpCircle,
   Bell,
   Check,
   Database,
@@ -8,6 +9,7 @@ import {
   Gamepad2,
   Info,
   Loader2,
+  Lock,
   Palette,
   RefreshCw,
   Server,
@@ -15,8 +17,11 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Volume2,
   Zap,
+  Terminal,
 } from 'lucide-react';
+import { LogViewerPage } from '@/features/logs/LogViewerPage';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -31,6 +36,7 @@ import {
   useRestoreBackupMutation,
 } from '@/hooks/queries';
 import { clearArtworkBlobCache } from '@/hooks/useAuthenticatedImage';
+import { isTauriRuntime } from '@/services/api';
 import { backupApi } from '@/services/backupApi';
 import { systemApi } from '@/services/systemApi';
 import { useAppStore } from '@/stores/appStore';
@@ -41,15 +47,22 @@ import {
   KNOWN_ACCENT_PALETTES,
 } from '@/utils/theme';
 import { ControllerSettingsPanel } from './ControllerSettingsPanel';
+import { AudioSettingsSection } from './AudioSettingsSection';
+import { UpdateSettingsSection } from './UpdateSettingsSection';
 import { SteamConnectSection } from '@/features/steam/SteamConnectSection';
+import { openExternalUrl } from '@/utils/browser';
+import { soundManager } from '@/audio/soundManager';
 
 type SettingsTab =
+  | 'updates'
   | 'appearance'
+  | 'audio'
   | 'performance'
   | 'controller'
   | 'notifications'
   | 'integrations'
   | 'storage'
+  | 'logs'
   | 'about';
 
 export function SettingsPage() {
@@ -102,6 +115,44 @@ export function SettingsPage() {
   const [savingCreds, setSavingCreds] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isEditingIgdb, setIsEditingIgdb] = useState(false);
+  const [isEditingSteamGridDb, setIsEditingSteamGridDb] = useState(false);
+  const [isEditingItad, setIsEditingItad] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(true);
+
+  // Sync autostart status from Windows Registry via Tauri
+  useEffect(() => {
+    if (isTauriRuntime()) {
+      import('@tauri-apps/api/core').then(({ invoke }) => {
+        invoke<boolean>('get_autostart_status')
+          .then((enabled) => setAutostartEnabled(enabled))
+          .catch(() => undefined);
+      });
+    }
+  }, []);
+
+  const handleToggleAutostart = async (checked: boolean) => {
+    setAutostartEnabled(checked);
+    if (isTauriRuntime()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('set_autostart', { enabled: checked });
+        addToast({
+          tone: 'success',
+          title: checked ? 'Windows Startup Enabled' : 'Windows Startup Disabled',
+          message: checked
+            ? 'CHECKPOINT will automatically launch when Windows boots.'
+            : 'CHECKPOINT removed from Windows startup apps.',
+        });
+      } catch (err) {
+        addToast({
+          tone: 'error',
+          title: 'Startup Setting Failed',
+          message: String(err),
+        });
+      }
+    }
+  };
 
   const handleCreateBackup = async () => {
     try {
@@ -280,11 +331,15 @@ export function SettingsPage() {
         title: 'API Credentials Saved',
         message: 'Saved securely with DPAPI / Windows Credential Manager.',
       });
+      soundManager.playDone();
       setIgdbClientId('');
       setIgdbClientSecret('');
       setSteamGridDbKey('');
       setSteamWebApiKey('');
       setItadApiKey('');
+      setIsEditingIgdb(false);
+      setIsEditingSteamGridDb(false);
+      setIsEditingItad(false);
       void integrationsQuery.refetch();
     } catch (err: unknown) {
       addToast({
@@ -312,12 +367,15 @@ export function SettingsPage() {
       <div className="flex flex-wrap items-center gap-2 border-b border-outline/70 pb-3">
         {(
           [
+            { id: 'updates', label: 'Updates & Release', icon: ArrowUpCircle },
             { id: 'storage', label: 'Storage & Backup', icon: Database },
             { id: 'controller', label: 'Controller', icon: Gamepad2 },
             { id: 'integrations', label: 'Integrations & API', icon: Server },
+            { id: 'audio', label: 'Sound & Audio', icon: Volume2 },
             { id: 'appearance', label: 'Appearance', icon: Palette },
             { id: 'performance', label: 'Performance', icon: Zap },
             { id: 'notifications', label: 'Notifications', icon: Bell },
+            { id: 'logs', label: 'System Logs', icon: Terminal },
             { id: 'about', label: 'About', icon: Info },
           ] as const
         ).map((tab) => {
@@ -542,45 +600,90 @@ export function SettingsPage() {
                     {integrationsQuery.data?.igdb_connected ? 'Connected' : 'Not Configured'}
                   </Badge>
                 </div>
-                <a
-                  href="https://dev.twitch.tv/console"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline"
+                <button
+                  type="button"
+                  data-nav-item="true"
+                  onClick={() => void openExternalUrl('https://dev.twitch.tv/console')}
+                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline cursor-pointer bg-transparent border-0 p-0"
                 >
                   <span>Get Twitch Credentials</span>
                   <ExternalLink className="h-3 w-3" />
-                </a>
+                </button>
               </div>
               <p className="text-body-sm text-on-surface-variant">
                 Powers real-time game search, release dates, genres, screenshots, and aggregate critic scores.
               </p>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
-                    Twitch Client ID
-                  </label>
-                  <Input
+              {integrationsQuery.data?.igdb_connected && !isEditingIgdb ? (
+                <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-body-sm font-semibold text-on-background flex items-center gap-2">
+                        <span>Twitch Credentials Saved & Active</span>
+                        <span className="font-mono text-xs text-muted tracking-widest">•••• •••• •••• ••••</span>
+                      </div>
+                      <p className="text-[12px] text-muted">
+                        Encrypted with Windows DPAPI. Verified and active.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
                     data-nav-item="true"
-                    value={igdbClientId}
-                    onChange={(e) => setIgdbClientId(e.target.value)}
-                    placeholder="Enter Client ID"
-                  />
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsEditingIgdb(true)}
+                  >
+                    Change Credentials
+                  </Button>
                 </div>
-                <div>
-                  <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
-                    Twitch Client Secret
-                  </label>
-                  <Input
-                    data-nav-item="true"
-                    type="password"
-                    value={igdbClientSecret}
-                    onChange={(e) => setIgdbClientSecret(e.target.value)}
-                    placeholder="Enter Client Secret"
-                  />
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
+                        Twitch Client ID
+                      </label>
+                      <Input
+                        data-nav-item="true"
+                        value={igdbClientId}
+                        onChange={(e) => setIgdbClientId(e.target.value)}
+                        placeholder="Enter Client ID"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
+                        Twitch Client Secret
+                      </label>
+                      <Input
+                        data-nav-item="true"
+                        type="password"
+                        value={igdbClientSecret}
+                        onChange={(e) => setIgdbClientSecret(e.target.value)}
+                        placeholder="Enter Client Secret"
+                      />
+                    </div>
+                  </div>
+                  {integrationsQuery.data?.igdb_connected && (
+                    <div className="flex justify-end">
+                      <Button
+                        data-nav-item="true"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsEditingIgdb(false);
+                          setIgdbClientId('');
+                          setIgdbClientSecret('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-between pt-1">
                 {testResults.igdb ? (
@@ -621,32 +724,76 @@ export function SettingsPage() {
                     {integrationsQuery.data?.steamgriddb_connected ? 'Connected' : 'Not Configured'}
                   </Badge>
                 </div>
-                <a
-                  href="https://www.steamgriddb.com/profile/preferences/api"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline"
+                <button
+                  type="button"
+                  data-nav-item="true"
+                  onClick={() => void openExternalUrl('https://www.steamgriddb.com/profile/preferences/api')}
+                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline cursor-pointer bg-transparent border-0 p-0"
                 >
                   <span>Get SteamGridDB Key</span>
                   <ExternalLink className="h-3 w-3" />
-                </a>
+                </button>
               </div>
               <p className="text-body-sm text-on-surface-variant">
                 Enables high-resolution vertical 600x900 game covers, transparent hero logos, and wide banner artwork customization.
               </p>
 
-              <div>
-                <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
-                  SteamGridDB API Key
-                </label>
-                <Input
-                  data-nav-item="true"
-                  type="password"
-                  value={steamGridDbKey}
-                  onChange={(e) => setSteamGridDbKey(e.target.value)}
-                  placeholder="Enter SteamGridDB API Key"
-                />
-              </div>
+              {integrationsQuery.data?.steamgriddb_connected && !isEditingSteamGridDb ? (
+                <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-body-sm font-semibold text-on-background flex items-center gap-2">
+                        <span>API Key Saved & Active</span>
+                        <span className="font-mono text-xs text-muted tracking-widest">•••• •••• •••• ••••</span>
+                      </div>
+                      <p className="text-[12px] text-muted">
+                        Encrypted with Windows DPAPI. Covers & logos actively syncing.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    data-nav-item="true"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsEditingSteamGridDb(true)}
+                  >
+                    Change Key
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
+                      SteamGridDB API Key
+                    </label>
+                    <Input
+                      data-nav-item="true"
+                      type="password"
+                      value={steamGridDbKey}
+                      onChange={(e) => setSteamGridDbKey(e.target.value)}
+                      placeholder="Enter SteamGridDB API Key"
+                    />
+                  </div>
+                  {integrationsQuery.data?.steamgriddb_connected && (
+                    <div className="flex justify-end">
+                      <Button
+                        data-nav-item="true"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsEditingSteamGridDb(false);
+                          setSteamGridDbKey('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-1">
                 {testResults.steamgriddb ? (
@@ -687,32 +834,76 @@ export function SettingsPage() {
                     {integrationsQuery.data?.itad_connected ? 'Connected' : 'Not Configured'}
                   </Badge>
                 </div>
-                <a
-                  href="https://isthereanydeal.com/waitlist/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline"
+                <button
+                  type="button"
+                  data-nav-item="true"
+                  onClick={() => void openExternalUrl('https://isthereanydeal.com/waitlist/')}
+                  className="flex items-center gap-1 text-caption text-accent-primary hover:underline cursor-pointer bg-transparent border-0 p-0"
                 >
                   <span>Get ITAD Key</span>
                   <ExternalLink className="h-3 w-3" />
-                </a>
+                </button>
               </div>
               <p className="text-body-sm text-on-surface-variant">
                 Enables global storefront price comparisons and historical lows. If unconfigured, Checkpoint seamlessly queries Valve's official Indian regional store API for verified INR (₹) prices.
               </p>
 
-              <div>
-                <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
-                  IsThereAnyDeal API Key
-                </label>
-                <Input
-                  data-nav-item="true"
-                  type="password"
-                  value={itadApiKey}
-                  onChange={(e) => setItadApiKey(e.target.value)}
-                  placeholder="Enter ITAD API Key (Optional)"
-                />
-              </div>
+              {integrationsQuery.data?.itad_connected && !isEditingItad ? (
+                <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/5 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success">
+                      <Lock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="text-body-sm font-semibold text-on-background flex items-center gap-2">
+                        <span>ITAD Key Saved & Active</span>
+                        <span className="font-mono text-xs text-muted tracking-widest">•••• •••• •••• ••••</span>
+                      </div>
+                      <p className="text-[12px] text-muted">
+                        Encrypted with Windows DPAPI. Global price queries ready.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    data-nav-item="true"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIsEditingItad(true)}
+                  >
+                    Change Key
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-label-sm font-medium text-on-surface-variant mb-1">
+                      IsThereAnyDeal API Key
+                    </label>
+                    <Input
+                      data-nav-item="true"
+                      type="password"
+                      value={itadApiKey}
+                      onChange={(e) => setItadApiKey(e.target.value)}
+                      placeholder="Enter ITAD API Key (Optional)"
+                    />
+                  </div>
+                  {integrationsQuery.data?.itad_connected && (
+                    <div className="flex justify-end">
+                      <Button
+                        data-nav-item="true"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsEditingItad(false);
+                          setItadApiKey('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-1">
                 {testResults.itad ? (
@@ -852,7 +1043,7 @@ export function SettingsPage() {
               <span className="font-semibold text-on-background">Visual Source of Truth</span>
               <p className="mt-1 text-body-sm text-on-surface-variant">
                 Built strictly on Google Stitch project <code>16645222145573679933</code> (CHECKPOINT V2).
-                Features atmospheric dark surfaces (<code>#111722</code> to <code>#2B384B</code>), Sora & Inter typography, dual-direction gradient scrims, and full-bleed 2:3/16:9 artwork.
+                Features atmospheric dark surfaces (<code>#0C0F12</code> to <code>#1E2329</code>), Plus Jakarta Sans & DM Sans typography, dual-direction gradient scrims, and full-bleed 2:3/16:9 artwork.
               </p>
             </div>
           </div>
@@ -872,6 +1063,19 @@ export function SettingsPage() {
           </div>
 
           <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer text-body-md text-on-background rounded-xl border border-outline/70 bg-surface-dark p-4">
+              <Checkbox
+                checked={autostartEnabled}
+                onChange={(e) => void handleToggleAutostart(e.target.checked)}
+              />
+              <div>
+                <span className="font-semibold">Launch CHECKPOINT on Windows Startup</span>
+                <p className="text-body-sm text-on-surface-variant">
+                  Automatically start CHECKPOINT Gaming Hub in the background when your computer boots up.
+                </p>
+              </div>
+            </label>
+
             <label className="flex items-center gap-3 cursor-pointer text-body-md text-on-background rounded-xl border border-outline/70 bg-surface-dark p-4">
               <Checkbox
                 checked={reducedMotion}
@@ -989,6 +1193,23 @@ export function SettingsPage() {
         </section>
       )}
 
+      {/* ==================== AUDIO TAB ==================== */}
+      {activeTab === 'audio' && <AudioSettingsSection />}
+
+      {/* ==================== SYSTEM LOGS TAB ==================== */}
+      {activeTab === 'logs' && (
+        <section className="rounded-2xl border border-outline/75 bg-secondary-background/85 p-6 shadow-sm space-y-4">
+          <LogViewerPage />
+        </section>
+      )}
+
+      {/* ==================== UPDATES & RELEASE TAB ==================== */}
+      {activeTab === 'updates' && (
+        <section className="rounded-2xl border border-outline/75 bg-secondary-background/85 p-6 shadow-sm space-y-4">
+          <UpdateSettingsSection />
+        </section>
+      )}
+
       {/* ==================== ABOUT TAB ==================== */}
       {activeTab === 'about' && (
         <section className="rounded-2xl border border-outline/75 bg-secondary-background/85 p-6 shadow-sm space-y-4">
@@ -999,13 +1220,13 @@ export function SettingsPage() {
           <div className="space-y-3 text-body-sm text-on-surface-variant">
             <div className="rounded-xl border border-outline/70 bg-surface-dark p-4 space-y-2">
               <p>
-                <strong className="text-on-background">Version:</strong> 1.0.1 (Windows x64 Release)
+                <strong className="text-on-background">Version:</strong> 1.1.0 (Cinematic V3 & Sound Release)
               </p>
               <p>
-                <strong className="text-on-background">Platform:</strong> Windows 10/11 Desktop (Tauri 2.0 + React 18 + FastAPI + SQLite)
+                <strong className="text-on-background">Platform:</strong> Windows 10/11 Desktop (Tauri 2.0 + React 19 + FastAPI + SQLite)
               </p>
               <p>
-                <strong className="text-on-background">Design System:</strong> CHECKPOINT V2 (Google Stitch Project <code>16645222145573679933</code>)
+                <strong className="text-on-background">Design System:</strong> CHECKPOINT V3 (Console-Inspired Cinematic Interface)
               </p>
               <p>
                 <strong className="text-on-background">Database:</strong> Local SQLite 3 with Write-Ahead Logging (<code>%APPDATA%/Checkpoint/checkpoint.db</code>)
@@ -1015,6 +1236,9 @@ export function SettingsPage() {
               </p>
               <p>
                 <strong className="text-on-background">Security:</strong> DPAPI / Windows Credential Manager encrypted token storage.
+              </p>
+              <p>
+                <strong className="text-on-background">Audio System:</strong> Web Audio API procedural synthesis with zero external audio assets.
               </p>
               <p>
                 <strong className="text-on-background">Architecture:</strong> 100% Local-First. Zero telemetry.

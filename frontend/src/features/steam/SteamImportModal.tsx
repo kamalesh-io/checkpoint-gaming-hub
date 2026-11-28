@@ -14,6 +14,7 @@ import {
   useSteamImportPreviewQuery,
 } from '@/hooks/queries/usePhase6Queries';
 import { useToastStore } from '@/stores/toastStore';
+import { soundManager } from '@/audio/soundManager';
 import type { SteamGamePreview } from '@/types';
 import { cn } from '@/utils/cn';
 import { formatHoursLogged } from '@/utils/format';
@@ -88,6 +89,7 @@ export function SteamImportModal({ open, onClose }: SteamImportModalProps) {
         app_ids: ids,
         ownership_status_overrides: ownershipOverrides,
       });
+      soundManager.playDone();
       addToast({
         title: 'Steam Library Synchronized',
         description: res.message,

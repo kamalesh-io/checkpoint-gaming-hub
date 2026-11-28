@@ -57,11 +57,11 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({ onReady }) => {
       await apiClient.initializeSession();
       if (cancelled) return;
 
-      // Poll until backend is healthy or timeout (up to 15 seconds)
+      // Poll until backend is healthy or timeout (up to 35 seconds to allow PyInstaller extraction)
       const startTime = Date.now();
       let isHealthy = false;
 
-      while (!cancelled && Date.now() - startTime < 15000) {
+      while (!cancelled && Date.now() - startTime < 35000) {
         try {
           if (isTauriRuntime()) {
             const tauriStatus = await getTauriBackendStatus();
@@ -140,11 +140,13 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({ onReady }) => {
       throw new Error('Health probe did not report healthy status');
     } catch (err: unknown) {
       setStage('error');
-      setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : 'Failed to restart local game services. Please retry.',
-      );
+      const msg =
+        typeof err === 'string'
+          ? err
+          : err instanceof Error
+            ? err.message
+            : 'Failed to restart local game services. Please retry.';
+      setErrorMessage(msg);
     } finally {
       setRetrying(false);
     }
@@ -174,10 +176,10 @@ export const StartupScreen: React.FC<StartupScreenProps> = ({ onReady }) => {
 
   return (
     <main className="relative flex-1 min-h-screen w-full bg-background flex flex-col items-center justify-center overflow-hidden px-xl select-none">
-      {/* Subtle CHECKPOINT V2 atmospheric ambient radial gradient */}
+      {/* Subtle CHECKPOINT V3 atmospheric ambient radial gradient */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(102,184,255,0.12)_0%,_rgba(17,23,34,0)_68%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(102,184,255,0.12)_0%,_rgba(12,15,18,0)_68%)]"
       />
 
       {/* Startup Centerpiece */}

@@ -100,7 +100,7 @@ export function GameArtwork({
           className="flex h-full w-full flex-col items-center justify-center gap-2.5 p-4 text-center"
           style={{
             background:
-              'radial-gradient(circle at 30% 20%, rgba(var(--accent-active-rgb), 0.16), transparent 65%), linear-gradient(160deg, #1B2636 0%, #111722 100%)',
+              'radial-gradient(circle at 30% 20%, rgba(var(--accent-active-rgb), 0.16), transparent 65%), linear-gradient(160deg, #1A1F26 0%, #0C0F12 100%)',
           }}
         >
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface/80 border border-outline/75 text-muted">

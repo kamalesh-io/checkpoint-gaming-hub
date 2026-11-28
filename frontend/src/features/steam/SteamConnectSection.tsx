@@ -22,6 +22,7 @@ import {
 } from '@/hooks/queries/usePhase6Queries';
 import { useToastStore } from '@/stores/toastStore';
 import { formatShortDate } from '@/utils/format';
+import { openExternalUrl } from '@/utils/browser';
 import { SteamImportModal } from './SteamImportModal';
 
 export function SteamConnectSection() {
@@ -173,15 +174,14 @@ export function SteamConnectSection() {
                     {status.persona_name || 'Steam User'}
                   </h4>
                   {status.profile_url && (
-                    <a
-                      href={status.profile_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted hover:text-on-background transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => void openExternalUrl(status.profile_url!)}
+                      className="text-muted hover:text-on-background transition-colors cursor-pointer bg-transparent border-0 p-0"
                       title="Open Steam Profile"
                     >
                       <ExternalLink className="h-4 w-4" />
-                    </a>
+                    </button>
                   )}
                 </div>
                 <p className="text-xs text-muted font-mono">
@@ -250,14 +250,13 @@ export function SteamConnectSection() {
               <div className="space-y-2">
                 <label className="text-body-sm font-medium text-on-background flex items-center justify-between">
                   <span>Steam Web API Key</span>
-                  <a
-                    href="https://steamcommunity.com/dev/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-accent-primary hover:underline flex items-center gap-1"
+                  <button
+                    type="button"
+                    onClick={() => void openExternalUrl('https://steamcommunity.com/dev/apikey')}
+                    className="text-xs text-accent-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
                   >
                     Get API Key <ExternalLink className="h-3 w-3" />
-                  </a>
+                  </button>
                 </label>
                 <Input
                   type="password"

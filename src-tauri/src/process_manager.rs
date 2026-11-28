@@ -149,6 +149,8 @@ pub fn locate_backend_binary() -> Result<(PathBuf, Vec<String>), String> {
             candidates.push(exe_dir.join("checkpoint-backend.exe"));
             candidates.push(exe_dir.join("binaries").join("checkpoint-backend-x86_64-pc-windows-msvc.exe"));
             candidates.push(exe_dir.join("..").join("binaries").join("checkpoint-backend-x86_64-pc-windows-msvc.exe"));
+            candidates.push(exe_dir.join("../..").join("binaries").join("checkpoint-backend-x86_64-pc-windows-msvc.exe"));
+            candidates.push(exe_dir.join("../../..").join("backend/dist").join("checkpoint-backend-x86_64-pc-windows-msvc.exe"));
         }
     }
 
@@ -423,8 +425,8 @@ impl ProcessManager {
             });
         }
 
-        // Await readiness handshake with a 15-second timeout
-        let port = match rx.recv_timeout(Duration::from_secs(15)) {
+        // Await readiness handshake with a 35-second timeout (accommodates PyInstaller archive extraction on slower disks)
+        let port = match rx.recv_timeout(Duration::from_secs(35)) {
             Ok(Ok(port)) => port,
             Ok(Err(e)) => {
                 let _ = child.kill();

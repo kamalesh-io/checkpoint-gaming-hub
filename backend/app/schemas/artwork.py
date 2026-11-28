@@ -10,14 +10,14 @@ class ArtworkRead(BaseModel):
     game_id: str
     asset_type: str
     remote_url: str
-    local_path: str
+    local_path: Optional[str] = ""
     width: Optional[int] = None
     height: Optional[int] = None
     file_size_bytes: Optional[int] = None
     mime_type: Optional[str] = None
-    is_active: bool = True
-    is_animated: bool = False
-    source: str = "steamgriddb"
+    is_active: Optional[bool] = True
+    is_animated: Optional[bool] = False
+    source: Optional[str] = "steamgriddb"
     author: Optional[str] = None
     cached_url: Optional[str] = None
 

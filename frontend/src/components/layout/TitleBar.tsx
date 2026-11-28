@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   Square,
+  Terminal,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -194,6 +195,16 @@ export function TitleBar({ backendOnline = true, onQuickAddGame }: TitleBarProps
         >
           Add Game
         </Button>
+
+        <IconButton
+          label="View System Logs"
+          size="sm"
+          variant="ghost"
+          onClick={() => navigate(ROUTES.LOGS)}
+          className="text-muted hover:text-on-background"
+        >
+          <Terminal className="h-4 w-4" />
+        </IconButton>
 
         <IconButton
           label={isFullscreen ? 'Exit Fullscreen (F11)' : 'Enter Fullscreen (F11)'}

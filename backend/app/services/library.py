@@ -226,6 +226,16 @@ class LibraryService:
                 elif art.asset_type == AssetType.LOGO.value and not logo_url:
                     logo_url = url
 
+        # High-definition Steam CDN fallbacks if artwork is missing from database
+        steam_app_id = getattr(entry.game, "steam_app_id", None)
+        if steam_app_id:
+            if not cover_url:
+                cover_url = f"https://shared.steamstatic.com/store_item_assets/steam/apps/{steam_app_id}/library_600x900.jpg"
+            if not hero_url:
+                hero_url = f"https://shared.steamstatic.com/store_item_assets/steam/apps/{steam_app_id}/library_hero.jpg"
+            if not logo_url:
+                logo_url = f"https://shared.steamstatic.com/store_item_assets/steam/apps/{steam_app_id}/logo.png"
+
         artwork_bundle = GameArtworkBundle(
             cover_url=cover_url,
             hero_url=hero_url,

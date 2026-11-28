@@ -110,6 +110,13 @@ fn restart_backend(state: State<'_, SharedBackendState>) -> Result<LocalApiConfi
 }
 
 #[tauri::command]
+fn prepare_for_update(state: State<'_, SharedBackendState>) -> Result<bool, String> {
+    println!("[CHECKPOINT Rust] Stopping backend sidecar in preparation for application update...");
+    ProcessManager::stop_backend((*state).clone());
+    Ok(true)
+}
+
+#[tauri::command]
 fn get_native_gamepads(state: State<'_, SharedGamepadState>) -> Vec<NativeGamepadSnapshot> {
     if let Ok(lock) = state.snapshots.lock() {
         lock.clone()
@@ -123,6 +130,91 @@ fn set_native_gamepad_polling(enabled: bool, state: State<'_, SharedGamepadState
     state.polling_enabled.store(enabled, Ordering::Relaxed);
 }
 
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_str = exe_path.to_str().ok_or("Invalid executable path")?;
+        if enabled {
+            let status = Command::new("reg")
+                .args([
+                    "add",
+                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    "/v",
+                    "Checkpoint",
+                    "/t",
+                    "REG_SZ",
+                    "/d",
+                    &format!("\"{}\"", exe_str),
+                    "/f",
+                ])
+                .status()
+                .map_err(|e| format!("Failed to set autostart: {}", e))?;
+            if !status.success() {
+                return Err("Failed to register autostart in Windows Registry".to_string());
+            }
+        } else {
+            let _ = Command::new("reg")
+                .args([
+                    "delete",
+                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                    "/v",
+                    "Checkpoint",
+                    "/f",
+                ])
+                .status();
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn get_autostart_status() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        let output = Command::new("reg")
+            .args([
+                "query",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "/v",
+                "Checkpoint",
+            ])
+            .output();
+        if let Ok(out) = output {
+            Ok(out.status.success())
+        } else {
+            Ok(false)
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+fn open_external_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", "start", "", &url])
+            .spawn()
+            .map_err(|e| format!("Failed to open external URL: {}", e))?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let backend_state: SharedBackendState = Arc::new(Mutex::new(BackendState::new()));
@@ -133,6 +225,7 @@ pub fn run() {
     let gamepad_for_exit = gamepad_state.clone();
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(backend_state)
         .manage(gamepad_state)
         .invoke_handler(tauri::generate_handler![
@@ -140,14 +233,42 @@ pub fn run() {
             wait_for_backend_ready,
             get_backend_status,
             restart_backend,
+            prepare_for_update,
             get_native_gamepads,
             set_native_gamepad_polling,
             launch_steam_game,
             launch_executable,
             pick_executable_file,
-            restore_window
+            restore_window,
+            open_external_url,
+            set_autostart,
+            get_autostart_status
         ])
         .setup(move |app| {
+            #[cfg(target_os = "windows")]
+            {
+                // Automatically ensure Windows Startup Apps entry is enabled
+                std::thread::spawn(|| {
+                    if let Ok(exe_path) = std::env::current_exe() {
+                        if let Some(exe_str) = exe_path.to_str() {
+                            let _ = std::process::Command::new("reg")
+                                .args([
+                                    "add",
+                                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                                    "/v",
+                                    "Checkpoint",
+                                    "/t",
+                                    "REG_SZ",
+                                    "/d",
+                                    &format!("\"{}\"", exe_str),
+                                    "/f",
+                                ])
+                                .status();
+                        }
+                    }
+                });
+            }
+
             let state_clone = state_for_setup.clone();
             std::thread::spawn(move || {
                 if let Err(e) = ProcessManager::start_backend(state_clone.clone()) {

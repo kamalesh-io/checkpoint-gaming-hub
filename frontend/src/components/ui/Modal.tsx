@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { soundManager } from '@/audio/soundManager';
+import { SoundEvent } from '@/audio/soundEvents';
 import { cn } from '@/utils/cn';
 import { IconButton } from './IconButton';
 
@@ -53,6 +55,7 @@ export function Modal({
   useEffect(() => {
     if (!isOpen) return;
 
+    soundManager.play(SoundEvent.MODAL_OPEN);
     previousFocusRef.current = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -109,6 +112,7 @@ export function Modal({
     window.addEventListener('keydown', handleKeyDown, true);
 
     return () => {
+      soundManager.play(SoundEvent.MODAL_CLOSE);
       window.clearTimeout(focusTimer);
       window.removeEventListener('keydown', handleKeyDown, true);
       document.body.style.overflow = prevOverflow;
@@ -143,7 +147,7 @@ export function Modal({
         )}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between gap-4 border-b border-outline/75 px-6 py-4 shrink-0 bg-sidebar/70">
+          <div className="flex items-start justify-between gap-4 border-b border-outline/75 px-6 py-4 shrink-0 bg-surface/80">
             <div className="min-w-0">
               {title && (
                 <h2
@@ -166,7 +170,7 @@ export function Modal({
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-outline/75 px-6 py-4 shrink-0 bg-sidebar/65">
+          <div className="flex items-center justify-end gap-3 border-t border-outline/75 px-6 py-4 shrink-0 bg-surface/70">
             {footer}
           </div>
         )}

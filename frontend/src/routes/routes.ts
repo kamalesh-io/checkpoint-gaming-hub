@@ -9,6 +9,7 @@ export const ROUTES = {
   JOURNAL: '/journal',
   STATISTICS: '/statistics',
   SETTINGS: '/settings',
+  LOGS: '/logs',
   GAME_DETAILS: '/games/:id',
   BIG_PICTURE: '/big-picture',
 } as const;

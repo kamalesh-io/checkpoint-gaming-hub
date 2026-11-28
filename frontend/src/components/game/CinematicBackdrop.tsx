@@ -40,12 +40,26 @@ export function CinematicBackdrop({
   const [settledBg, setSettledBg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!resolvedSrc) return;
+    if (!resolvedSrc) {
+      setSettledBg(null);
+      return;
+    }
+    let cancelled = false;
     const img = new Image();
     img.src = resolvedSrc;
     if (img.complete) {
       setSettledBg(resolvedSrc);
+    } else {
+      img.onload = () => {
+        if (!cancelled) setSettledBg(resolvedSrc);
+      };
+      img.onerror = () => {
+        if (!cancelled) setSettledBg(resolvedSrc);
+      };
     }
+    return () => {
+      cancelled = true;
+    };
   }, [resolvedSrc]);
 
   return (
@@ -72,7 +86,7 @@ export function CinematicBackdrop({
             'absolute inset-0 h-full w-full object-cover object-center',
             settledBg === resolvedSrc || !settledBg ? 'opacity-100' : 'opacity-0',
             !reducedMotion &&
-              'transition-opacity duration-[650ms] ease-hero-transition scale-[1.02]',
+              'transition-opacity duration-[800ms] ease-hero-transition scale-[1.03]',
           )}
         />
       ) : (
@@ -81,7 +95,7 @@ export function CinematicBackdrop({
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(circle at 75% 25%, rgba(var(--accent-active-rgb), 0.24), transparent 58%), linear-gradient(135deg, #1B2636 0%, #111722 100%)',
+              'radial-gradient(circle at 75% 25%, rgba(var(--accent-active-rgb), 0.24), transparent 58%), linear-gradient(135deg, #1A1F26 0%, #0C0F12 100%)',
           }}
         />
       )}

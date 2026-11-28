@@ -125,10 +125,18 @@ export function BigPictureLibraryPage() {
             setFocusedEntry(entry);
             setActiveEntryId(entry.id);
           }}
+          onMouseEnter={() => {
+            setFocusedEntry(entry);
+            setActiveEntryId(entry.id);
+          }}
         >
           <GameCoverCard
             entry={entry}
             size="large"
+            onHover={(e) => {
+              setFocusedEntry(e);
+              setActiveEntryId(e.id);
+            }}
             onOpenDetails={(e) => navigate(`${ROUTES.BIG_PICTURE}/games/${e.id}`)}
             onUpdateProgress={(e) => setProgressTarget(e)}
             onQuickStatusChange={(e, st) => void handleQuickStatus(e, st)}

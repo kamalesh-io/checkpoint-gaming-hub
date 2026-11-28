@@ -87,6 +87,14 @@ async def execute_library_import(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
+@router.post("/sync/enrich-artworks")
+async def enrich_all_artworks(db: AsyncSession = Depends(get_db)) -> dict:
+    """Enriches all existing Steam games with high-res SteamGridDB artwork."""
+    sync_service = SteamSyncService(db)
+    count = await sync_service.enrich_all_steam_artworks()
+    return {"status": "success", "enriched_count": count, "message": f"Successfully enriched {count} Steam games."}
+
+
 @router.get("/games/{game_id}/achievements", response_model=GameAchievementsResponse)
 async def get_game_achievements(
     game_id: str,

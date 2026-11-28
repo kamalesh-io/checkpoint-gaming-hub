@@ -1,20 +1,20 @@
 # CHECKPOINT Gaming Hub — Design System & Visual Specification
 
-**Design System Name:** CHECKPOINT V2 — Cinematic Gaming Launcher  
-**Stitch Project ID:** `16645222145573679933`  
-**Design System Canvas ID:** `node_6193931847565035227`  
-**Status:** Visual Source of Truth Baseline  
+**Design System Name:** CHECKPOINT V3 — Cinematic Living-Room Gaming Interface  
+**Visual Source of Truth:** V1.1.0 Reference Console Layout (PlayStation 5 & Steam Big Picture inspired)  
+**Status:** Active Production Design System Baseline  
 
 ---
 
 ## 1. Design Philosophy & Influences
 
-CHECKPOINT V2 replaces utilitarian spreadsheet tables and cluttered administration panels with an immersive, game-centric interface inspired by the best aspects of contemporary gaming platforms:
+CHECKPOINT V3 replaces utilitarian spreadsheet tables, generic SaaS dashboards, and permanent vertical navigation sidebars with an immersive, console-inspired interface:
 
-* **PlayStation 5**: Atmospheric dynamism where the currently selected game dictates the entire viewport's lighting, background art, and primary UI accent.
-* **Epic Games Store**: High-impact full-bleed 2:3 vertical covers without borders or inner padding, featuring subtle hover zooms and overlay metadata reveals.
-* **GOG Galaxy**: Unified multi-store library management with clean status tags, decoupled license ownership vs. playing state, and structured sorting.
-* **Steam Big Picture**: Ergonomic 10-foot controller navigation with clear controller glyph legends and fluid horizontal carousels.
+* **PlayStation 5**: Atmospheric dynamism where the currently selected game dictates the entire viewport's lighting, background art, and primary UI accent. Clean white pill primary buttons, translucent dark pills, and subtle circular controls.
+* **Floating Capsule Dock**: Centered translucent bottom dock replacing the permanent sidebar, maximizing horizontal game poster display space.
+* **Web Audio Procedural Soundscapes**: Subtle electronic UI audio cues (navigation tick, confirm chime, modal sweeps, game launch thumps, trophy chords) synthesized entirely client-side via the Web Audio API.
+* **Epic Games Store & Steam**: High-impact full-bleed 2:3 vertical covers and 16:9 landscape carousels with glowing active rings and live telemetry badges.
+* **Ergonomic 10-Foot Spatial Navigation**: Full controller and keyboard navigation with focus trapping, visual spatial focus rings, and On-Screen Virtual Keyboard.
 
 ---
 
@@ -22,32 +22,50 @@ CHECKPOINT V2 replaces utilitarian spreadsheet tables and cluttered administrati
 
 ### 2.1 Color Tokens & Atmospheric Depth
 
-Instead of pure flat black (`#000000`), CHECKPOINT uses a tonal surface progression across deep dark-blue and charcoal hues. Depth is established through ambient color steps and soft gradient scrims rather than heavy borders.
+Instead of flat black (`#000000`) or legacy navy blue, CHECKPOINT V3 utilizes a charcoal surface progression:
 
 ```yaml
 colors:
   # Base Canvas & Surface Tiers
-  background: "#111722"              # Deep canvas viewport
-  on-background: "#F4F7FC"           # High-contrast primary text
-  sidebar: "#151D2A"                 # Launcher navigation drawer
-  on-sidebar: "#F4F7FC"
-  secondary-background: "#1B2636"   # Sub-panels, filter bars, list rows
-  on-secondary-background: "#F4F7FC"
-  surface: "#222E40"                 # Cards, standard containers, input fields
-  on-surface: "#F4F7FC"
-  surface-elevated: "#2B384B"        # Floating modals, popovers, active tiles
-  on-surface-elevated: "#F4F7FC"
-  outline: "#2C394D"                 # Subtle dividers and unfocused borders
-  muted: "#A8B5C7"                   # Secondary labels, metadata, captions
+  background: "#0C0F12"              # Deep charcoal canvas viewport
+  on-background: "#F5F5F7"           # High-contrast primary text
+  secondary-background: "#14181D"   # Sub-panels, filter bars, list rows
+  on-secondary-background: "#F5F5F7"
+  surface: "#1A1F26"                 # Cards, standard containers, input fields
+  on-surface: "#F5F5F7"
+  surface-elevated: "#1E2329"        # Floating modals, popovers, active tiles
+  on-surface-elevated: "#F5F5F7"
+  outline: "#2A2F38"                 # Subtle dividers and unfocused borders
+  muted: "#A7ABB4"                   # Secondary labels, metadata, captions
+  dock: "#14181D"                    # Floating bottom navigation capsule
+  dock-border: "#2A2F38"             # Floating dock capsule border
 
   # System Primary Accent
   primary: "#66B8FF"                 # Sky-blue default for global buttons & focus
-  on-primary: "#111722"
+  on-primary: "#0C0F12"
 
   # Dynamic Game-Adaptive Accents
   accent-gold: "#E0B45A"             # Elden Ring (antique fantasy gold)
-  on-accent-gold: "#111722"
+  on-accent-gold: "#0C0F12"
   accent-amber: "#F09B4B"            # Metro Exodus (apocalyptic warm amber)
+  on-accent-amber: "#0C0F12"
+  accent-blue: "#5BA8FF"             # Watch Dogs (cyberpunk sapphire)
+  on-accent-blue: "#0C0F12"
+  accent-yellow: "#F5DF4D"           # Cyberpunk 2077 (neon yellow)
+  on-accent-yellow: "#0C0F12"
+```
+
+### 2.2 Typography Scale
+
+CHECKPOINT V3 uses **Plus Jakarta Sans** for display and headline elements, paired with **DM Sans** for interface labels, captions, and body text.
+
+```yaml
+fonts:
+  display: "Plus Jakarta Sans Variable, Plus Jakarta Sans, sans-serif"
+  headline: "Plus Jakarta Sans Variable, Plus Jakarta Sans, sans-serif"
+  body: "DM Sans Variable, DM Sans, sans-serif"
+  label: "DM Sans Variable, DM Sans, sans-serif"
+```
   on-accent-amber: "#111722"
   accent-blue: "#5BA8FF"             # Watch Dogs (cybernetic tech blue)
   on-accent-blue: "#111722"

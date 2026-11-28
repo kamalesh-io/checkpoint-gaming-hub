@@ -8,6 +8,8 @@ import { BackendGate } from '@/components/layout/BackendGate';
 import { CinematicBackdrop } from '@/components/game/CinematicBackdrop';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { ActiveSessionHUD } from '@/features/sessions/ActiveSessionHUD';
+import { soundManager } from '@/audio/soundManager';
+import { SoundEvent } from '@/audio/soundEvents';
 import { useHealthQuery, useLibraryQuery } from '@/hooks/queries';
 import { CONTROLLER_CUSTOM_EVENT } from '@/hooks/useSpatialNavigation';
 import { ROUTES } from '@/routes/routes';
@@ -25,6 +27,7 @@ const BP_NAV_ITEMS = [
   { to: `${ROUTES.BIG_PICTURE}/planner`, label: 'Planner', end: false },
   { to: `${ROUTES.BIG_PICTURE}/collections`, label: 'Collections', end: false },
   { to: `${ROUTES.BIG_PICTURE}/wishlist`, label: 'Wishlist', end: false },
+  { to: `${ROUTES.BIG_PICTURE}/logs`, label: 'Logs', end: false },
   { to: `${ROUTES.BIG_PICTURE}/settings`, label: 'Settings', end: false },
 ] as const;
 
@@ -89,6 +92,7 @@ export function BigPictureLayout() {
   }, [setFullscreen]);
 
   const handleExitToDesktop = async () => {
+    soundManager.play(SoundEvent.NAV_BACK);
     if (isTauriRuntime()) {
       try {
         const win = getCurrentWindow();
@@ -125,6 +129,7 @@ export function BigPictureLayout() {
         const target = BP_NAV_ITEMS[nextIdx];
         if (target && !location.pathname.includes('/games/')) {
           ev.preventDefault();
+          soundManager.play(SoundEvent.NAV_TAB);
           navigate(target.to);
         }
       }

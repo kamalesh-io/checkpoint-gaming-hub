@@ -42,7 +42,7 @@ hiddenimports = [
     "pydantic",
     "pydantic_settings",
     "httpx",
-] + collect_submodules("app")
+] + collect_submodules("app") + collect_submodules("aiosqlite") + collect_submodules("sqlalchemy.dialects.sqlite")
 
 # Collect any additional data files needed by dependencies
 datas += collect_data_files("alembic")

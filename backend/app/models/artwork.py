@@ -38,7 +38,7 @@ class GameArtwork(Base, TimestampMixin):
 
     asset_type: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
     remote_url: Mapped[str] = mapped_column(Text, nullable=False)
-    local_path: Mapped[str] = mapped_column(Text, nullable=False)
+    local_path: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

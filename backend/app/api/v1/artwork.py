@@ -168,7 +168,7 @@ async def set_active_artwork(
             file_size_bytes=cached["file_size_bytes"],
             mime_type=cached["mime_type"],
             is_active=True,
-            is_animated=cached["is_animated"],
+            is_animated=bool(cached.get("is_animated", False)),
             source="igdb" if "igdb.com" in req.steamgriddb_url else "steamgriddb",
             author=author_hint,
         )
@@ -192,13 +192,13 @@ async def set_active_artwork(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to re-cache missing artwork asset. Retained existing artwork.",
                 )
-            artwork.local_path = str(cached["local_path"])
-            artwork.sha256_hash = cached["sha256_hash"]
-            artwork.width = cached["width"] or artwork.width or width_hint
-            artwork.height = cached["height"] or artwork.height or height_hint
-            artwork.file_size_bytes = cached["file_size_bytes"]
-            artwork.mime_type = cached["mime_type"]
-            artwork.is_animated = cached["is_animated"]
+            artwork.local_path = str(cached.get("local_path", ""))
+            artwork.sha256_hash = cached.get("sha256_hash")
+            artwork.width = cached.get("width") or artwork.width or width_hint
+            artwork.height = cached.get("height") or artwork.height or height_hint
+            artwork.file_size_bytes = cached.get("file_size_bytes")
+            artwork.mime_type = cached.get("mime_type")
+            artwork.is_animated = bool(cached.get("is_animated", False))
         
     # Unset other active artworks of the same type for this game
     other_artworks = await db.execute(
@@ -216,4 +216,22 @@ async def set_active_artwork(
     await db.commit()
     await db.refresh(artwork)
     
-    return GameArtworkResponse.model_validate(artwork)
+    try:
+        return GameArtworkResponse.model_validate(artwork)
+    except Exception as exc:
+        logger.error(f"Fallback validation for GameArtworkResponse: {exc}")
+        return GameArtworkResponse(
+            id=str(artwork.id),
+            game_id=str(artwork.game_id),
+            asset_type=str(artwork.asset_type),
+            remote_url=str(artwork.remote_url),
+            local_path=str(artwork.local_path or ""),
+            width=artwork.width,
+            height=artwork.height,
+            file_size_bytes=artwork.file_size_bytes,
+            mime_type=artwork.mime_type,
+            is_active=bool(artwork.is_active),
+            is_animated=bool(artwork.is_animated),
+            source=str(artwork.source or "steamgriddb"),
+            author=artwork.author,
+        )

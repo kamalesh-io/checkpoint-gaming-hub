@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { useUpdateGameMutation } from '@/hooks/queries';
 import { CheckpointApiError } from '@/services/api';
 import { useToastStore } from '@/stores/toastStore';
+import { soundManager } from '@/audio/soundManager';
 import {
   COMPLETION_GOALS,
   PLAYING_STATUSES,
@@ -78,6 +79,7 @@ function UpdateProgressForm({
           notes,
         },
       });
+      soundManager.playDone();
       addToast({
         type: 'success',
         title: 'Progress updated',

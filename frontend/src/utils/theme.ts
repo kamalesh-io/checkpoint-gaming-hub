@@ -13,31 +13,31 @@ export const KNOWN_ACCENT_PALETTES: Record<string, ResolvedAccentPalette> = {
   primary: {
     token: 'primary',
     hex: '#66B8FF',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '102, 184, 255',
   },
   'accent-gold': {
     token: 'accent-gold',
     hex: '#E0B45A',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '224, 180, 90',
   },
   'accent-amber': {
     token: 'accent-amber',
     hex: '#F09B4B',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '240, 155, 75',
   },
   'accent-blue': {
     token: 'accent-blue',
     hex: '#5BA8FF',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '91, 168, 255',
   },
   'accent-yellow': {
     token: 'accent-yellow',
     hex: '#F5DF4D',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '245, 223, 77',
   },
   'accent-violet': {
@@ -55,7 +55,7 @@ export const KNOWN_ACCENT_PALETTES: Record<string, ResolvedAccentPalette> = {
   'accent-emerald': {
     token: 'accent-emerald',
     hex: '#10B981',
-    ink: '#111722',
+    ink: '#0C0F12',
     rgb: '16, 185, 129',
   },
   'accent-rose': {
@@ -163,7 +163,7 @@ const extractedPaletteCache = new Map<string, ResolvedAccentPalette>();
 
 /**
  * Samples vibrant dominant color from a game artwork image using an offscreen canvas,
- * brightening if needed so accents maintain crisp readability over #111722.
+ * brightening if needed so accents maintain crisp readability over #0C0F12.
  */
 export async function extractAccentFromArtwork(src: string): Promise<ResolvedAccentPalette> {
   const cached = extractedPaletteCache.get(src);
@@ -230,7 +230,7 @@ export async function extractAccentFromArtwork(src: string): Promise<ResolvedAcc
           lum = relativeLuminance(bestR, bestG, bestB);
         }
 
-        const ink = lum > 0.32 ? '#111722' : '#F4F7FC';
+        const ink = lum > 0.32 ? '#0C0F12' : '#F5F5F7';
         const palette: ResolvedAccentPalette = {
           token: 'dynamic',
           hex: rgbToHex(bestR, bestG, bestB),

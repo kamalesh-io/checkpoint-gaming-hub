@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { soundManager } from '@/audio/soundManager';
+import { SoundEvent } from '@/audio/soundEvents';
 import { ROUTES } from '@/routes/routes';
 import { controllerManager } from '@/services/gamepad/controllerManager';
 import type { ControllerActionEvent } from '@/services/gamepad/types';
@@ -97,6 +99,7 @@ function moveSpatialFocus(
     next.element.focus({ preventScroll: true });
     scrollElementSmoothlyIntoView(next.element, reducedMotion);
     rememberRouteFocus(pathname, next.element);
+    soundManager.play(SoundEvent.NAV_MOVE);
     return true;
   }
   return false;

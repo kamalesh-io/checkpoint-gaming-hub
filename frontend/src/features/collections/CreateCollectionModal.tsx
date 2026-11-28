@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
-import { FolderPlus, Image, X } from 'lucide-react';
+import { useRef, useState, type FormEvent, type ChangeEvent } from 'react';
+import { FolderPlus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCreateCollectionMutation, useUpdateCollectionMutation } from '@/hooks/queries';
 import { useToastStore } from '@/stores/toastStore';
+import { soundManager } from '@/audio/soundManager';
 import type { CollectionRead } from '@/types';
 
 interface CreateCollectionModalProps {
@@ -24,8 +25,46 @@ export function CreateCollectionModal({
   const [description, setDescription] = useState(collectionToEdit?.description ?? '');
   const [bannerUrl, setBannerUrl] = useState(collectionToEdit?.banner_url ?? '');
   const [isPinned, setIsPinned] = useState(collectionToEdit?.is_pinned ?? false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const handleImageFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast({
+        tone: 'error',
+        title: 'Invalid File',
+        message: 'Please choose an image file (PNG, JPG, WebP, GIF).',
+      });
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      addToast({
+        tone: 'warning',
+        title: 'Image Too Large',
+        message: 'Please choose an image under 8 MB for optimal performance.',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setBannerUrl(dataUrl);
+        addToast({
+          tone: 'info',
+          title: 'Banner Image Loaded',
+          message: `${file.name} ready to save with collection.`,
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -42,6 +81,7 @@ export function CreateCollectionModal({
             is_pinned: isPinned,
           },
         });
+        soundManager.playDone();
         addToast({ tone: 'success', title: 'Collection Updated', message: `Saved "${name}".` });
       } else {
         await createMutation.mutateAsync({
@@ -50,6 +90,7 @@ export function CreateCollectionModal({
           banner_url: bannerUrl.trim() || null,
           is_pinned: isPinned,
         });
+        soundManager.playDone();
         addToast({ tone: 'success', title: 'Collection Created', message: `Created "${name}".` });
       }
       onClose();
@@ -113,19 +154,56 @@ export function CreateCollectionModal({
 
           <div>
             <label className="block text-label-sm font-medium text-on-surface-variant mb-1.5">
-              Custom Banner Image URL (optional)
+              Custom Banner Image (optional)
             </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={handleImageFileSelect}
+            />
             <div className="flex items-center gap-2">
               <input
                 data-nav-item="true"
-                type="url"
-                value={bannerUrl}
+                type="text"
+                value={bannerUrl.startsWith('data:') ? 'Local Image Attached (' + (bannerUrl.length > 50 ? bannerUrl.slice(0, 30) + '...' : bannerUrl) + ')' : bannerUrl}
                 onChange={(e) => setBannerUrl(e.target.value)}
-                placeholder="https://.../banner.jpg"
+                placeholder="https://.../banner.jpg or click Upload Image"
                 className="w-full rounded-xl border border-outline/70 bg-surface-dark px-3 py-2 text-body-sm text-on-background placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent-primary"
               />
-              <Image className="h-5 w-5 text-on-surface-variant shrink-0" />
+              <Button
+                data-nav-item="true"
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                leftIcon={<Upload className="h-4 w-4" />}
+              >
+                Upload
+              </Button>
             </div>
+
+            {bannerUrl && (
+              <div className="relative mt-2.5 overflow-hidden rounded-xl border border-outline/70 bg-surface-dark aspect-[16/6] max-h-36 flex items-center justify-center">
+                <img
+                  src={bannerUrl}
+                  alt="Banner preview"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  data-nav-item="true"
+                  onClick={() => setBannerUrl('')}
+                  className="absolute top-2 right-2 flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-xs text-error hover:bg-black transition-colors"
+                  title="Remove custom banner"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer text-body-sm text-on-background">

@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/Release-v1.0.0-0078D6?style=flat-square&logo=github" alt="Release v1.0.0" /></a>
+  <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/Release-v1.1.0-0078D6?style=flat-square&logo=github" alt="Release v1.1.0" /></a>
   <a href="https://microsoft.com/windows"><img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=flat-square&logo=windows" alt="Platform Windows x64" /></a>
   <img src="https://img.shields.io/badge/Tauri-2.0-FFC131?style=flat-square&logo=tauri" alt="Tauri 2.0" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" alt="React 19" />
@@ -25,11 +25,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/download/v1.0.0/CHECKPOINT_1.0.0_x64-setup.exe"><strong>Download for Windows (.exe)</strong></a> •
+  <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/download/v1.1.0/CHECKPOINT_Gaming_Hub_1.1.0_x64-setup.exe"><strong>Download for Windows (.exe)</strong></a> •
   <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/releases/latest">Latest Release</a> •
   <a href="#installation">Installation Guide</a> •
   <a href="#system-architecture">Architecture</a> •
   <a href="USER_GUIDE.md">User Guide</a> •
+  <a href="docs/UPDATES.md">Update Architecture</a> •
   <a href="https://github.com/kamalesh-io/checkpoint-gaming-hub/issues">Report a Bug</a>
 </p>
 
