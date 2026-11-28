@@ -58,7 +58,11 @@ class GamingStatsResponse(BaseModel):
     wishlist_count: int
 
     total_hours_logged: float
+    steam_total_hours: float = 0.0
+    combined_total_hours: float = 0.0
     average_personal_rating: Optional[float] = None
+    rated_games_count: int = 0
+    rating_distribution: Dict[str, int] = {}
     backlog_completion_pct: float
 
     monthly_activity: List[MonthlyActivityItem]

@@ -4,10 +4,12 @@ import hmac
 import time
 from typing import Optional
 from fastapi import APIRouter, Depends, Header, Response
-from sqlalchemy import text
+import httpx
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.database.session import get_db
+from app.models.steam import SteamAccount
 from app.repositories.library_repo import LibraryRepository
 from app.schemas.system import (
     CredentialsUpdateRequest,
@@ -15,6 +17,8 @@ from app.schemas.system import (
     IntegrationStatus,
     ShutdownResponse,
     SystemStatsResponse,
+    TestServiceConnectionRequest,
+    TestServiceConnectionResponse,
 )
 from app.services.twitch_auth import twitch_auth_manager
 
@@ -66,7 +70,7 @@ async def get_status(
 
 
 @router.get("/integrations", response_model=IntegrationStatus)
-async def get_integration_status():
+async def get_integration_status(db: AsyncSession = Depends(get_db)):
     """Reports status of external API keys without exposing secrets."""
     igdb_ready = bool(
         settings.IGDB_CLIENT_ID
@@ -77,15 +81,199 @@ async def get_integration_status():
     steamgriddb_ready = bool(
         settings.STEAMGRIDDB_API_KEY and settings.STEAMGRIDDB_API_KEY.get_secret_value()
     )
+    itad_ready = bool(settings.get_itad_api_key())
+
+    steam_account_res = await db.execute(select(SteamAccount).where(SteamAccount.is_connected == True))  # noqa: E712
+    steam_account = steam_account_res.scalar_one_or_none()
+    steam_ready = steam_account is not None
+
+    details = {
+        "igdb": "Active Twitch Token (Connected)" if twitch_auth_manager.is_token_valid else ("Credentials configured" if igdb_ready else "Missing credentials"),
+        "steamgriddb": "API Key configured" if steamgriddb_ready else "Missing API key",
+        "steam": f"Connected to {steam_account.persona_name or steam_account.steam_id_64}" if steam_ready and steam_account else "Not Connected",
+        "itad": "API Key configured (INR regional deals enabled)" if itad_ready else "Missing API key",
+    }
 
     return IntegrationStatus(
         igdb_connected=igdb_ready,
         steamgriddb_connected=steamgriddb_ready,
         twitch_token_active=twitch_auth_manager.is_token_valid,
-        details={
-            "igdb": "Credentials configured" if igdb_ready else "Missing credentials",
-            "steamgriddb": "API Key configured" if steamgriddb_ready else "Missing API key",
-        },
+        steam_connected=steam_ready,
+        itad_connected=itad_ready,
+        details=details,
+    )
+
+
+@router.post("/test-service", response_model=TestServiceConnectionResponse)
+async def test_service_connection(
+    req: TestServiceConnectionRequest, db: AsyncSession = Depends(get_db)
+):
+    """Tests connection to an external API (igdb, steamgriddb, itad, steam) without saving credentials."""
+    t0 = time.time()
+    service = req.service.lower()
+
+    if service == "igdb":
+        client_id = req.client_id or (settings.IGDB_CLIENT_ID.get_secret_value() if settings.IGDB_CLIENT_ID else None)
+        client_secret = req.client_secret or (settings.IGDB_CLIENT_SECRET.get_secret_value() if settings.IGDB_CLIENT_SECRET else None)
+        if not client_id or not client_secret:
+            return TestServiceConnectionResponse(
+                service="igdb",
+                status="not_configured",
+                message="Client ID and Client Secret are required.",
+            )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                token_res = await client.post(
+                    "https://id.twitch.tv/oauth2/token",
+                    params={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "grant_type": "client_credentials",
+                    },
+                )
+                if token_res.status_code != 200:
+                    return TestServiceConnectionResponse(
+                        service="igdb",
+                        status="authentication_failed",
+                        message="Invalid Twitch Client ID or Client Secret.",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                token_data = token_res.json()
+                access_token = token_data.get("access_token")
+                igdb_res = await client.post(
+                    "https://api.igdb.com/v4/games",
+                    headers={"Client-ID": client_id, "Authorization": f"Bearer {access_token}"},
+                    content="fields id; limit 1;",
+                )
+                if igdb_res.status_code == 200:
+                    return TestServiceConnectionResponse(
+                        service="igdb",
+                        status="connected",
+                        message="IGDB / Twitch API verified successfully.",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                return TestServiceConnectionResponse(
+                    service="igdb",
+                    status="authentication_failed",
+                    message=f"IGDB query returned HTTP {igdb_res.status_code}.",
+                    latency_ms=int((time.time() - t0) * 1000),
+                )
+        except httpx.TimeoutException:
+            return TestServiceConnectionResponse(
+                service="igdb",
+                status="unreachable",
+                message="Connection to Twitch / IGDB timed out.",
+                latency_ms=int((time.time() - t0) * 1000),
+            )
+        except Exception as exc:
+            return TestServiceConnectionResponse(
+                service="igdb",
+                status="unreachable",
+                message=f"Network error reaching IGDB: {type(exc).__name__}",
+                latency_ms=int((time.time() - t0) * 1000),
+            )
+
+    elif service == "steamgriddb":
+        api_key = req.api_key or (settings.STEAMGRIDDB_API_KEY.get_secret_value() if settings.STEAMGRIDDB_API_KEY else None)
+        if not api_key:
+            return TestServiceConnectionResponse(
+                service="steamgriddb",
+                status="not_configured",
+                message="SteamGridDB API key is required.",
+            )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                res = await client.get(
+                    "https://www.steamgriddb.com/api/v2/games/search",
+                    params={"term": "Cyberpunk"},
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                if res.status_code == 200:
+                    return TestServiceConnectionResponse(
+                        service="steamgriddb",
+                        status="connected",
+                        message="SteamGridDB API key verified successfully.",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                if res.status_code in (401, 403):
+                    return TestServiceConnectionResponse(
+                        service="steamgriddb",
+                        status="authentication_failed",
+                        message="Invalid SteamGridDB API key.",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                return TestServiceConnectionResponse(
+                    service="steamgriddb",
+                    status="unreachable",
+                    message=f"SteamGridDB returned HTTP {res.status_code}.",
+                    latency_ms=int((time.time() - t0) * 1000),
+                )
+        except Exception as exc:
+            return TestServiceConnectionResponse(
+                service="steamgriddb",
+                status="unreachable",
+                message=f"Network error reaching SteamGridDB: {type(exc).__name__}",
+                latency_ms=int((time.time() - t0) * 1000),
+            )
+
+    elif service == "itad":
+        api_key = req.api_key or settings.get_itad_api_key()
+        if not api_key:
+            return TestServiceConnectionResponse(
+                service="itad",
+                status="not_configured",
+                message="IsThereAnyDeal API key is required.",
+            )
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                res = await client.get(
+                    "https://api.isthereanydeal.com/games/lookup/v1",
+                    params={"key": api_key, "title": "Portal"},
+                )
+                if res.status_code == 200:
+                    return TestServiceConnectionResponse(
+                        service="itad",
+                        status="connected",
+                        message="IsThereAnyDeal API key verified successfully (INR regional deals enabled).",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                if res.status_code in (401, 403):
+                    return TestServiceConnectionResponse(
+                        service="itad",
+                        status="authentication_failed",
+                        message="Invalid IsThereAnyDeal API key.",
+                        latency_ms=int((time.time() - t0) * 1000),
+                    )
+                return TestServiceConnectionResponse(
+                    service="itad",
+                    status="unreachable",
+                    message=f"IsThereAnyDeal returned HTTP {res.status_code}.",
+                    latency_ms=int((time.time() - t0) * 1000),
+                )
+        except Exception as exc:
+            return TestServiceConnectionResponse(
+                service="itad",
+                status="unreachable",
+                message=f"Network error reaching IsThereAnyDeal: {type(exc).__name__}",
+                latency_ms=int((time.time() - t0) * 1000),
+            )
+
+    elif service == "steam":
+        from app.services.steam import SteamService
+        steam_service = SteamService(db)
+        steam_id = req.steam_id_64 or ""
+        res = await steam_service.test_connection(steam_id, req.api_key)
+        return TestServiceConnectionResponse(
+            service="steam",
+            status="connected" if res.success else "authentication_failed",
+            message=res.message,
+            latency_ms=int((time.time() - t0) * 1000),
+        )
+
+    return TestServiceConnectionResponse(
+        service=service,
+        status="not_configured",
+        message=f"Unknown service: {service}",
     )
 
 
@@ -98,16 +286,20 @@ async def get_system_stats(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/credentials", response_model=IntegrationStatus)
-async def update_production_credentials(req: CredentialsUpdateRequest):
+async def update_production_credentials(
+    req: CredentialsUpdateRequest, db: AsyncSession = Depends(get_db)
+):
     """Updates and securely persists production API credentials to %APPDATA%/Checkpoint/credentials.json."""
     settings.update_credentials(
         igdb_id=req.igdb_client_id,
         igdb_secret=req.igdb_client_secret,
         sgdb_key=req.steamgriddb_api_key,
+        steam_api_key=req.steam_web_api_key,
+        itad_key=req.itad_api_key,
     )
     # Invalidate existing twitch token cache so fresh token is fetched with new credentials
     twitch_auth_manager.invalidate_token()
-    return await get_integration_status()
+    return await get_integration_status(db)
 
 
 @router.post("/shutdown", response_model=ShutdownResponse)

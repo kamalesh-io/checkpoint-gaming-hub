@@ -77,6 +77,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Filtered out `ownership_status == "To Buy"` from default library queries in `LibraryRepository.list_entries` and frontend views (`MyLibraryPage`, `BigPictureLibraryPage`, and `OverviewPage`).
   * Updated system stats, analytics, and backlog calculations to strictly exclude wishlist items from total games, completed games, and playtime metrics.
   * Enhanced `WishlistPage.tsx` with dedicated "Mark Purchased" and "Move to Backlog" actions for seamless conversion when games are acquired.
+* **Wishlist Target Pricing & INR Regional Store Integration (BUG-016)**:
+  * Created `AddToWishlistModal.tsx` and `EditWishlistModal.tsx` allowing users to configure target purchase price, INR (`₹`) or local currency, preferred storefront (Steam, Epic, GOG, PlayStation, Xbox, Nintendo), priority, and notes.
+  * Implemented automatic fallback to Valve's official Indian regional store API (`store.steampowered.com/api/appdetails?appids=...&cc=in&filters=price_overview`) when IsThereAnyDeal credentials are absent, providing authentic Indian Rupee pricing.
+  * Added live "Target Met!" deal notification badge on wishlist cards when current pricing satisfies or beats target thresholds.
+  * Added "Check Deals" action providing live toast notifications with current discount status.
+  * Maintained strict data integrity: honest unavailable states whenever store IDs or APIs are unavailable; zero fabricated pricing.
+* **Separated Playtime & Personal Rating Analytics (BUG-017)**:
+  * Decoupled imported Steam playtime (`steam_playtime_minutes / 60.0`) from local CHECKPOINT active gaming sessions across `GamingStatsResponse` and `StatisticsPage.tsx`.
+  * Added distinct metric cards for Total Games, Local Playtime, Steam Playtime, Completed, Now Playing, Backlog, Wishlist Count, and Average Rating.
+  * Added 5-bucket Personal Rating Distribution chart (Masterpiece 9-10, Great 8-8.9, Good 7-7.9, Mixed/Low <7, Unrated).
+  * Added an atmospheric empty state banner when zero games are recorded in the library.
+* **Settings Persistence & Palette Customization (BUG-018)**:
+  * Persisted all user preferences in `localStorage` under `checkpoint-app-preferences` via Zustand persist middleware across application restarts.
+  * Added Dynamic Game Accent Switching toggle and Default Accent Palette picker offering 8 signature colors (Cyan, Gold, Amber, Sapphire, Yellow, Violet, Crimson, Emerald) with instant CSS variable updates.
+  * Added Performance toggles: Reduced Motion, Compact Sidebar Mode, Minimize CHECKPOINT on Game Launch, and Low GPU Background Mode.
+  * Added Notification toggles: Gaming Planner Reminders, Wishlist Price Alerts, and Steam Achievement Alerts.
+  * Verified SQLite Online Database Backups (WAL-safe), single-click restore with safety snapshots, and portable JSON library export/import.
+* **Live API Connection Status & Credential Verification (BUG-019)**:
+  * Implemented `POST /api/v1/system/test-service` endpoint and individual "Test Connection" actions for IGDB, SteamGridDB, ITAD, and Steam with live latency measurement and exact error feedback.
+  * Clearly categorized integrations with "Required" (IGDB) and "Optional" (SteamGridDB, ITAD, Steam) badges.
+  * Provided direct setup links to official developer consoles and API key pages.
+  * Replaced static credential presence checks with live connection status validation (`connected`, `authentication_failed`, `unreachable`, `not_configured`).
+  * Enforced DPAPI encrypted storage for all API credentials.
+* **Stress Testing & Stability Hardening (BUG-020)**:
+  * Added `clearArtworkBlobCache()` and URL revocation to eliminate browser memory leaks during rapid artwork browsing.
+  * Sanitized search input lengths and special SQL characters to ensure resilience under extreme inputs.
+  * Verified rapid route navigation, modal focus trapping, and zero orphaned background processes on application exit.
 
 ## [1.0.0] - 2026-11-26
 

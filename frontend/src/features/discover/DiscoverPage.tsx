@@ -21,6 +21,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { AddGameModal } from '@/features/modals/AddGameModal';
+import { AddToWishlistModal } from '@/features/modals/AddToWishlistModal';
 import { useIgdbGameDetailsQuery, useIgdbSearchQuery } from '@/hooks/queries';
 import { useDebounce } from '@/hooks/useDebounce';
 import { buildGameDetailsRoute, ROUTES } from '@/routes/routes';
@@ -52,6 +53,7 @@ export function DiscoverPage() {
     item: IGDBSearchResultItem;
     defaultOwnership: OwnershipStatus;
   } | null>(null);
+  const [wishlistTarget, setWishlistTarget] = useState<IGDBSearchResultItem | null>(null);
 
   // Synchronize external global titlebar ?q= changes cleanly
   const [lastSyncedUrlQ, setLastSyncedUrlQ] = useState(urlQuery);
@@ -456,12 +458,7 @@ export function DiscoverPage() {
                       <Button
                         variant="secondary"
                         leftIcon={<ShoppingBag className="h-4 w-4" />}
-                        onClick={() =>
-                          setModalTarget({
-                            item: activeResult,
-                            defaultOwnership: 'To Buy',
-                          })
-                        }
+                        onClick={() => setWishlistTarget(activeResult)}
                       >
                         Add to Wishlist
                       </Button>
@@ -558,6 +555,13 @@ export function DiscoverPage() {
         defaultOwnershipStatus={modalTarget?.defaultOwnership ?? 'Unknown'}
         onAdded={(created) => navigate(buildGameDetailsRoute(created.id))}
         onOpenExisting={(entryId) => navigate(buildGameDetailsRoute(entryId))}
+      />
+
+      {/* Add to Wishlist Modal */}
+      <AddToWishlistModal
+        open={Boolean(wishlistTarget)}
+        game={wishlistTarget}
+        onClose={() => setWishlistTarget(null)}
       />
     </div>
   );

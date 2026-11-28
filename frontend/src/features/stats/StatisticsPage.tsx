@@ -5,12 +5,17 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  Compass,
   Flame,
   Gamepad2,
   Info,
   Layers,
+  ShoppingBag,
+  Star,
+  TrendingUp,
   Trophy,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -97,8 +102,6 @@ export function StatisticsPage() {
     );
   }
 
-  const completionPct = Math.round(stats.backlog_completion_pct ?? 0);
-
   return (
     <div className="space-y-8 p-6 pb-24">
       {/* Header */}
@@ -168,7 +171,7 @@ export function StatisticsPage() {
       </div>
 
       {/* Top Metric Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
         <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-4 shadow-sm">
           <div className="flex items-center gap-2 text-on-surface-variant">
             <Gamepad2 className="h-4 w-4 text-accent-primary" />
@@ -182,11 +185,23 @@ export function StatisticsPage() {
         <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-4 shadow-sm">
           <div className="flex items-center gap-2 text-on-surface-variant">
             <Clock className="h-4 w-4 text-accent-primary" />
-            <span className="text-label-sm font-semibold uppercase">Playtime</span>
+            <span className="text-label-sm font-semibold uppercase">Local Playtime</span>
           </div>
           <p className="mt-2 font-headline text-headline-lg font-bold text-accent-primary tabular-nums truncate">
             {stats.total_hours_logged > 0
               ? formatHoursLogged(stats.total_hours_logged)
+              : '0.0 hrs'}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <TrendingUp className="h-4 w-4 text-accent-cyan" />
+            <span className="text-label-sm font-semibold uppercase">Steam Playtime</span>
+          </div>
+          <p className="mt-2 font-headline text-headline-lg font-bold text-accent-cyan tabular-nums truncate">
+            {stats.steam_total_hours && stats.steam_total_hours > 0
+              ? formatHoursLogged(stats.steam_total_hours)
               : '0.0 hrs'}
           </p>
         </div>
@@ -223,14 +238,45 @@ export function StatisticsPage() {
 
         <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-4 shadow-sm">
           <div className="flex items-center gap-2 text-on-surface-variant">
-            <Trophy className="h-4 w-4 text-accent-gold" />
-            <span className="text-label-sm font-semibold uppercase">Completion Rate</span>
+            <ShoppingBag className="h-4 w-4 text-accent-gold" />
+            <span className="text-label-sm font-semibold uppercase">Wishlist</span>
           </div>
           <p className="mt-2 font-headline text-headline-lg font-bold text-accent-gold tabular-nums">
-            {completionPct}%
+            {stats.wishlist_count}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-on-surface-variant">
+            <Star className="h-4 w-4 text-accent-amber" />
+            <span className="text-label-sm font-semibold uppercase">Avg Rating</span>
+          </div>
+          <p className="mt-2 font-headline text-headline-lg font-bold text-accent-amber tabular-nums">
+            {stats.average_personal_rating !== null && stats.average_personal_rating !== undefined
+              ? `${stats.average_personal_rating} ★`
+              : '—'}
           </p>
         </div>
       </div>
+
+      {/* Empty Library State when user has 0 games */}
+      {stats.total_games === 0 && (
+        <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-8 text-center space-y-3">
+          <Gamepad2 className="mx-auto h-10 w-10 text-on-surface-variant" />
+          <h3 className="font-headline text-headline-md font-bold text-on-background">
+            Your Library is Empty
+          </h3>
+          <p className="mx-auto max-w-md text-body-sm text-on-surface-variant">
+            Add games to your local library from Discover or connect your Steam account in Settings to start tracking playtime, ratings, and gaming velocity.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Button data-nav-item="true" variant="primary" onClick={() => navigate('/discover')}>
+              <Compass className="mr-1.5 h-4 w-4" />
+              Discover Games
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Split Section: Genre Playtime + Monthly Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -407,6 +453,101 @@ export function StatisticsPage() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Personal Ratings & Playtime Attribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Personal Ratings Distribution */}
+        <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-accent-amber" />
+              <h3 className="font-headline text-headline-sm font-bold text-on-background">
+                Personal Ratings Breakdown
+              </h3>
+            </div>
+            <Badge tone="accent" size="sm">
+              {stats.rated_games_count ?? 0} of {stats.total_games} rated
+            </Badge>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            {(!stats.rating_distribution || Object.keys(stats.rating_distribution).length === 0) ? (
+              <p className="text-body-sm text-muted">No personal ratings recorded yet.</p>
+            ) : (
+              Object.entries(stats.rating_distribution).map(([tier, count]) => {
+                const pct = stats.total_games > 0 ? Math.round((count / stats.total_games) * 100) : 0;
+                return (
+                  <div key={tier} className="space-y-1">
+                    <div className="flex items-center justify-between text-body-sm">
+                      <span className="font-medium text-on-background">{tier}</span>
+                      <span className="font-mono text-on-surface-variant tabular-nums">
+                        {count} {count === 1 ? 'game' : 'games'} ({pct}%)
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-surface-dark overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-accent-amber transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Playtime Attribution: Checkpoint Sessions vs Steam */}
+        <div className="rounded-2xl border border-outline/70 bg-secondary-background/85 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-accent-primary" />
+              <h3 className="font-headline text-headline-sm font-bold text-on-background">
+                Playtime Separation
+              </h3>
+            </div>
+            <Badge tone="neutral" size="sm">
+              Decoupled Sources
+            </Badge>
+          </div>
+
+          <p className="text-body-sm text-on-surface-variant">
+            Lifetime Steam library hours are kept decoupled from local Checkpoint active session history.
+          </p>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between rounded-xl border border-outline/60 bg-surface-dark/70 p-3.5">
+              <div>
+                <span className="font-semibold text-body-sm text-on-background">Checkpoint Active Sessions</span>
+                <p className="text-caption text-on-surface-variant">Tracked locally with HUD timers and manual logs</p>
+              </div>
+              <span className="font-mono text-body-md font-bold text-accent-primary tabular-nums">
+                {formatHoursLogged(stats.total_hours_logged)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-outline/60 bg-surface-dark/70 p-3.5">
+              <div>
+                <span className="font-semibold text-body-sm text-on-background">Imported Steam Playtime</span>
+                <p className="text-caption text-on-surface-variant">Synchronized from linked Steam profile API</p>
+              </div>
+              <span className="font-mono text-body-md font-bold text-accent-cyan tabular-nums">
+                {formatHoursLogged(stats.steam_total_hours ?? 0)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-accent-gold/40 bg-accent-gold/5 p-3.5">
+              <div>
+                <span className="font-semibold text-body-sm text-accent-gold">Combined Gaming Lifetime</span>
+                <p className="text-caption text-on-surface-variant">Total cumulative playtime across all games</p>
+              </div>
+              <span className="font-mono text-headline-sm font-bold text-accent-gold tabular-nums">
+                {formatHoursLogged(stats.combined_total_hours ?? stats.total_hours_logged)}
+              </span>
+            </div>
           </div>
         </div>
       </div>

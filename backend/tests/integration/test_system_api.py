@@ -76,6 +76,8 @@ async def test_credentials_and_shutdown_endpoints(client: AsyncClient, tmp_path,
                 "igdb_client_id": "unit_igdb_id",
                 "igdb_client_secret": "unit_igdb_secret",
                 "steamgriddb_api_key": "unit_sgdb_key",
+                "steam_web_api_key": "unit_steam_key",
+                "itad_api_key": "unit_itad_key",
             },
         )
         assert res.status_code == 200
@@ -83,6 +85,38 @@ async def test_credentials_and_shutdown_endpoints(client: AsyncClient, tmp_path,
         assert body["igdb_connected"] is True
         assert body["steamgriddb_connected"] is True
         assert (tmp_path / "credentials.json").exists()
+
+        # Test individual service verification endpoint with mocked network failure/empty
+        test_igdb_res = await client.post(
+            "/api/v1/system/test-service",
+            json={"service": "igdb", "client_id": "bad_id", "client_secret": "bad_secret"},
+        )
+        assert test_igdb_res.status_code == 200
+        assert test_igdb_res.json()["service"] == "igdb"
+        assert test_igdb_res.json()["status"] in ("authentication_failed", "unreachable")
+
+        test_sgdb_res = await client.post(
+            "/api/v1/system/test-service",
+            json={"service": "steamgriddb", "api_key": "bad_key"},
+        )
+        assert test_sgdb_res.status_code == 200
+        assert test_sgdb_res.json()["service"] == "steamgriddb"
+        assert test_sgdb_res.json()["status"] in ("authentication_failed", "unreachable")
+
+        test_itad_res = await client.post(
+            "/api/v1/system/test-service",
+            json={"service": "itad", "api_key": "bad_itad_key"},
+        )
+        assert test_itad_res.status_code == 200
+        assert test_itad_res.json()["service"] == "itad"
+        assert test_itad_res.json()["status"] in ("authentication_failed", "unreachable")
+
+        test_unknown_res = await client.post(
+            "/api/v1/system/test-service",
+            json={"service": "unknown_provider"},
+        )
+        assert test_unknown_res.status_code == 200
+        assert test_unknown_res.json()["status"] == "not_configured"
 
         system_module.register_shutdown_trigger(fake_shutdown)
         shutdown_res = await client.post("/api/v1/system/shutdown")

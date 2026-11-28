@@ -3,7 +3,11 @@ export type AccentToken =
   | 'accent-gold'
   | 'accent-amber'
   | 'accent-blue'
-  | 'accent-yellow';
+  | 'accent-yellow'
+  | 'accent-violet'
+  | 'accent-crimson'
+  | 'accent-emerald'
+  | 'accent-rose';
 
 export type PlayingStatus =
   | 'Planned'
@@ -96,7 +100,24 @@ export interface IntegrationStatus {
   igdb_connected: boolean;
   steamgriddb_connected: boolean;
   twitch_token_active: boolean;
+  steam_connected?: boolean;
+  itad_connected?: boolean;
   details?: Record<string, string>;
+}
+
+export interface TestServiceConnectionRequest {
+  service: string; // 'igdb' | 'steamgriddb' | 'itad' | 'steam'
+  client_id?: string | null;
+  client_secret?: string | null;
+  api_key?: string | null;
+  steam_id_64?: string | null;
+}
+
+export interface TestServiceConnectionResponse {
+  service: string;
+  status: 'connected' | 'authentication_failed' | 'unreachable' | 'not_configured';
+  message: string;
+  latency_ms?: number | null;
 }
 
 export interface SystemStatsResponse {
@@ -603,7 +624,11 @@ export interface GamingStatsResponse {
   dropped: number;
   wishlist_count: number;
   total_hours_logged: number;
+  steam_total_hours?: number;
+  combined_total_hours?: number;
   average_personal_rating: number | null;
+  rated_games_count?: number;
+  rating_distribution?: Record<string, number>;
   backlog_completion_pct: number;
   monthly_activity: MonthlyActivityItem[];
   hours_by_genre: GenreStatsItem[];

@@ -61,15 +61,35 @@ class StatsService:
         legacy_wishlist_count = legacy_wishlist_res.scalar_one() or 0
         wishlist_count = dedicated_wishlist_count + legacy_wishlist_count
 
-        # Cumulative hours and average rating
+        # Cumulative hours, Steam hours, and average rating
         metrics_stmt = select(
             func.coalesce(func.sum(LibraryEntry.hours_played), 0.0),
             func.avg(LibraryEntry.personal_rating),
+            func.coalesce(func.sum(LibraryEntry.steam_playtime_minutes), 0),
         ).where(LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value)
         metrics_res = await self.session.execute(metrics_stmt)
         m_row = metrics_res.one()
         total_hours = round(float(m_row[0]), 1)
         avg_rating = round(float(m_row[1]), 1) if m_row[1] is not None else None
+        steam_total_hours = round(float(m_row[2]) / 60.0, 1)
+        combined_total_hours = round(total_hours + steam_total_hours, 1)
+
+        # Personal ratings distribution
+        ratings_res = await self.session.execute(
+            select(LibraryEntry.personal_rating).where(
+                LibraryEntry.ownership_status != OwnershipStatus.TO_BUY.value,
+                LibraryEntry.personal_rating.isnot(None),
+            )
+        )
+        ratings = [r[0] for r in ratings_res.all()]
+        rated_games_count = len(ratings)
+        rating_dist = {
+            "9-10 (Masterpiece)": sum(1 for r in ratings if r >= 9.0),
+            "7-8.9 (Great)": sum(1 for r in ratings if 7.0 <= r < 9.0),
+            "5-6.9 (Good)": sum(1 for r in ratings if 5.0 <= r < 7.0),
+            "< 5 (Mixed/Low)": sum(1 for r in ratings if r < 5.0),
+            "Unrated": total_games - rated_games_count,
+        }
 
         backlog_comp_pct = round(((completed + one_hundred) / total_games * 100.0), 1) if total_games > 0 else 0.0
 
@@ -219,7 +239,11 @@ class StatsService:
             dropped=dropped,
             wishlist_count=wishlist_count,
             total_hours_logged=total_hours,
+            steam_total_hours=steam_total_hours,
+            combined_total_hours=combined_total_hours,
             average_personal_rating=avg_rating,
+            rated_games_count=rated_games_count,
+            rating_distribution=rating_dist,
             backlog_completion_pct=backlog_comp_pct,
             monthly_activity=monthly_activity,
             hours_by_genre=genre_stats,

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CheckCircle2,
   Compass,
+  Edit2,
   ExternalLink,
   Filter,
   RefreshCw,
@@ -12,6 +13,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { EditWishlistModal } from './EditWishlistModal';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -46,6 +48,7 @@ export function WishlistPage() {
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [convertTarget, setConvertTarget] = useState<WishlistItemRead | null>(null);
+  const [editTarget, setEditTarget] = useState<WishlistItemRead | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('PC');
   const [selectedStatus, setSelectedStatus] = useState<string>('Planned');
 
@@ -82,6 +85,34 @@ export function WishlistPage() {
       return true;
     });
   }, [dedicatedItems, storeFilter, priorityFilter]);
+
+  const handleCheckDeals = async () => {
+    try {
+      const res = await refreshPricesMutation.mutateAsync();
+      const count = res?.deals_meeting_target ?? 0;
+      if (count > 0) {
+        addToast({
+          tone: 'success',
+          title: 'Target Price Met!',
+          message: `${count} game${count > 1 ? 's' : ''} on your wishlist met or beat your target purchase price!`,
+        });
+      } else {
+        addToast({
+          tone: 'neutral',
+          title: 'Prices Refreshed',
+          message: res?.has_api_key
+            ? 'Checked live deals via IsThereAnyDeal and Steam Store (India).'
+            : 'Checked live prices via Steam Store (India). For other stores, add an ITAD key in Settings.',
+        });
+      }
+    } catch (err) {
+      addToast({
+        tone: 'error',
+        title: 'Price Check Failed',
+        message: err instanceof Error ? err.message : 'Could not refresh regional prices.',
+      });
+    }
+  };
 
   const handleConvert = async () => {
     if (!convertTarget) return;
@@ -198,7 +229,7 @@ export function WishlistPage() {
           <Button
             data-nav-item="true"
             variant="secondary"
-            onClick={() => refreshPricesMutation.mutate()}
+            onClick={handleCheckDeals}
             disabled={refreshPricesMutation.isPending}
           >
             <RefreshCw
@@ -216,6 +247,21 @@ export function WishlistPage() {
           </Button>
         </div>
       </div>
+
+      {/* Target Price Deals Notification Banner */}
+      {pricesData && pricesData.deals_meeting_target > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-accent-gold/50 bg-accent-gold/10 p-4 text-on-background">
+          <Sparkles className="h-5 w-5 shrink-0 text-accent-gold" />
+          <div className="flex-1">
+            <span className="font-semibold text-body-md text-accent-gold">
+              {pricesData.deals_meeting_target} {pricesData.deals_meeting_target === 1 ? 'game' : 'games'} met your target purchase price!
+            </span>
+            <p className="text-caption text-on-surface-variant">
+              Live deals verified for regional India (INR). Look for the "Target Met!" badge below.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar */}
       {dedicatedItems.length > 0 && (
@@ -339,7 +385,14 @@ export function WishlistPage() {
 
                     {(() => {
                       const price = priceMap.get(item.game_id);
-                      if (!price || price.current_price === null || price.current_price === undefined) return null;
+                      if (!price || price.current_price === null || price.current_price === undefined) {
+                        return (
+                          <div className="mt-1.5 flex items-center gap-1.5 text-caption text-on-surface-variant">
+                            <Tag className="h-3 w-3 text-muted" />
+                            <span>Live price tracking: Click "Check Deals" above</span>
+                          </div>
+                        );
+                      }
                       return (
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <span className="text-xs font-bold text-on-background font-mono">
@@ -349,6 +402,11 @@ export function WishlistPage() {
                             <Badge tone="success" size="sm">
                               -{price.discount_percent}%
                             </Badge>
+                          )}
+                          {price.historical_low_price && (
+                            <span className="text-caption text-on-surface-variant font-mono">
+                              (Lowest: {currencySymbol}{price.historical_low_price})
+                            </span>
                           )}
                           {price.is_deal_active && (
                             <Badge tone="accent" size="sm" className="font-semibold">
@@ -413,6 +471,15 @@ export function WishlistPage() {
                       }}
                     >
                       Move to Backlog
+                    </Button>
+                    <Button
+                      data-nav-item="true"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setEditTarget(item)}
+                    >
+                      <Edit2 className="mr-1.5 h-3.5 w-3.5" />
+                      Edit Target
                     </Button>
                   </div>
                 </div>
@@ -618,6 +685,13 @@ export function WishlistPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Wishlist Item Modal */}
+      <EditWishlistModal
+        open={Boolean(editTarget)}
+        item={editTarget}
+        onClose={() => setEditTarget(null)}
+      />
     </div>
   );
 }

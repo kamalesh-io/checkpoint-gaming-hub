@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useAppStore } from '@/stores/appStore';
 import { useThemeStore } from '@/stores/themeStore';
 import {
   extractAccentFromArtwork,
@@ -16,7 +17,8 @@ interface UseGameThemeSyncOptions {
 
 /**
  * Synchronizes the global CHECKPOINT dynamic accent theme (--accent-active CSS vars)
- * to match the currently selected or inspected game.
+ * to match the currently selected or inspected game when dynamic accents are enabled,
+ * or adheres strictly to user's configured default accent when disabled.
  */
 export function useGameThemeSync({
   gameId = null,
@@ -26,12 +28,22 @@ export function useGameThemeSync({
   enabled = true,
 }: UseGameThemeSyncOptions): void {
   const setPalette = useThemeStore((state) => state.setPalette);
+  const dynamicAccentEnabled = useAppStore((state) => state.dynamicAccentEnabled);
+  const defaultAccent = useAppStore((state) => state.defaultAccent);
 
   useEffect(() => {
     if (!enabled) return;
 
+    // When dynamic game accent is disabled, lock to user-chosen default theme palette
+    if (!dynamicAccentEnabled) {
+      const fixed = KNOWN_ACCENT_PALETTES[defaultAccent] || KNOWN_ACCENT_PALETTES.primary!;
+      setPalette(fixed, gameId, title);
+      return;
+    }
+
     if (!title && !gameId) {
-      setPalette(KNOWN_ACCENT_PALETTES.primary!, null, null);
+      const fallback = KNOWN_ACCENT_PALETTES[defaultAccent] || KNOWN_ACCENT_PALETTES.primary!;
+      setPalette(fallback, null, null);
       return;
     }
 
@@ -49,11 +61,21 @@ export function useGameThemeSync({
         }
       });
     } else {
-      setPalette(KNOWN_ACCENT_PALETTES.primary!, gameId, title);
+      const fallback = KNOWN_ACCENT_PALETTES[defaultAccent] || KNOWN_ACCENT_PALETTES.primary!;
+      setPalette(fallback, gameId, title);
     }
 
     return () => {
       cancelled = true;
     };
-  }, [enabled, gameId, title, backendAccentToken, resolvedArtworkSrc, setPalette]);
+  }, [
+    enabled,
+    dynamicAccentEnabled,
+    defaultAccent,
+    gameId,
+    title,
+    backendAccentToken,
+    resolvedArtworkSrc,
+    setPalette,
+  ]);
 }

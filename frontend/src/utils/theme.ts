@@ -1,3 +1,7 @@
+import type { AccentToken } from '@/types';
+
+export type { AccentToken };
+
 export interface ResolvedAccentPalette {
   token: string;
   hex: string;
@@ -36,7 +40,42 @@ export const KNOWN_ACCENT_PALETTES: Record<string, ResolvedAccentPalette> = {
     ink: '#111722',
     rgb: '245, 223, 77',
   },
+  'accent-violet': {
+    token: 'accent-violet',
+    hex: '#A855F7',
+    ink: '#FFFFFF',
+    rgb: '168, 85, 247',
+  },
+  'accent-crimson': {
+    token: 'accent-crimson',
+    hex: '#EF4444',
+    ink: '#FFFFFF',
+    rgb: '239, 68, 68',
+  },
+  'accent-emerald': {
+    token: 'accent-emerald',
+    hex: '#10B981',
+    ink: '#111722',
+    rgb: '16, 185, 129',
+  },
+  'accent-rose': {
+    token: 'accent-rose',
+    hex: '#F43F5E',
+    ink: '#FFFFFF',
+    rgb: '244, 63, 94',
+  },
 };
+
+export const ACCENT_COLOR_OPTIONS: { id: AccentToken; label: string; hex: string }[] = [
+  { id: 'primary', label: 'Cyan', hex: '#66B8FF' },
+  { id: 'accent-gold', label: 'Gold', hex: '#E0B45A' },
+  { id: 'accent-amber', label: 'Amber', hex: '#F09B4B' },
+  { id: 'accent-blue', label: 'Sapphire', hex: '#5BA8FF' },
+  { id: 'accent-yellow', label: 'Yellow', hex: '#F5DF4D' },
+  { id: 'accent-violet', label: 'Violet', hex: '#A855F7' },
+  { id: 'accent-crimson', label: 'Crimson', hex: '#EF4444' },
+  { id: 'accent-emerald', label: 'Emerald', hex: '#10B981' },
+];
 
 export function resolveKnownGameAccent(
   title?: string | null,

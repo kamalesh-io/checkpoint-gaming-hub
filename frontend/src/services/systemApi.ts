@@ -3,6 +3,8 @@ import type {
   BackendHealthStatus,
   IntegrationStatus,
   SystemStatsResponse,
+  TestServiceConnectionRequest,
+  TestServiceConnectionResponse,
 } from '@/types';
 
 export const systemApi = {
@@ -23,11 +25,23 @@ export const systemApi = {
       igdb_client_id?: string;
       igdb_client_secret?: string;
       steamgriddb_api_key?: string;
+      steam_web_api_key?: string;
+      itad_api_key?: string;
     },
     signal?: AbortSignal,
   ) =>
     apiClient.post<IntegrationStatus>(
       '/system/credentials',
+      data,
+      signal,
+    ),
+
+  testServiceConnection: (
+    data: TestServiceConnectionRequest,
+    signal?: AbortSignal,
+  ) =>
+    apiClient.post<TestServiceConnectionResponse>(
+      '/system/test-service',
       data,
       signal,
     ),

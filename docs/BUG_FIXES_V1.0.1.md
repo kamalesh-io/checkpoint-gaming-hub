@@ -27,6 +27,11 @@ This release resolves five specific issues discovered during real-world Windows 
 | **BUG-013** | High | Game Details & Modals | Add Game and Game Details lacked interactive progress slider and nullable rating controls. | **Resolved** |
 | **BUG-014** | High | Active Sessions & HUD | Live session timer double-counted seconds on query refetches; stats did not refresh. | **Resolved** |
 | **BUG-015** | High | Library & Wishlist | Wishlist ("To Buy") games appeared in active Library and contaminated stats. | **Resolved** |
+| **BUG-016** | High | Wishlist & Price Tracking | Wishlist lacked target purchase price, INR currency, real store discounts, and deal alerts. | **Resolved** |
+| **BUG-017** | High | Statistics & Analytics | Steam playtime was conflated with local session hours; missing personal ratings distribution. | **Resolved** |
+| **BUG-018** | High | Settings & Local Storage | Appearance, performance, and notification settings were non-functional or not persisted. | **Resolved** |
+| **BUG-019** | Medium | API Configuration & Status | Connection status assumed connected on key presence without live testing; missing setup links. | **Resolved** |
+| **BUG-020** | High | General Stability & Stress | Addressed rapid navigation, blob URL memory management, network timeouts, and orphaned processes. | **Resolved** |
 
 ---
 
@@ -167,14 +172,69 @@ This release resolves five specific issues discovered during real-world Windows 
   2. Added defensive filtering in `MyLibraryPage.tsx`, `BigPictureLibraryPage.tsx`, and `OverviewPage.tsx`.
   3. Provided "Mark Purchased" and "Move to Backlog" buttons in `WishlistPage.tsx` for seamless game acquisition workflow.
 
+### BUG-016 — Wishlist and Price Tracking Not Working
+* **Problem Statement:** The Wishlist feature lacked target purchase pricing, INR currency (`₹`) support, store preferences, live discount verification, and deal alerts.
+* **Root Cause:** Wishlist cards only displayed stored data without live regional price querying or target threshold evaluations.
+* **Resolution:**
+  1. Built `AddToWishlistModal.tsx` and `EditWishlistModal.tsx` enabling users to set target purchase price, INR currency (`₹`), store preference (Steam, Epic, GOG, PlayStation, Xbox, Nintendo), priority, and notes.
+  2. Implemented Valve Indian Regional Store API fallback (`https://store.steampowered.com/api/appdetails?appids={appid}&cc=in&filters=price_overview`) in `ITADService.get_wishlist_prices()` to fetch authentic INR prices and discounts when IsThereAnyDeal credentials are absent.
+  3. Added target price met deal detection banner in `WishlistPage.tsx` displaying a prominent "Target Met!" badge when current price $\le$ target price.
+  4. Added "Check Deals" action with instant toast notifications informing user of current regional discounts.
+  5. Built "Mark as Purchased" (moves game to library as `Owned`) and "Move to Backlog" (moves game to library as `Owned` and `Planned`).
+  6. Enforced strict honesty: zero simulated prices; if a title lacks store identifiers or APIs are down, an honest "Price Tracking Unavailable" state is displayed.
+
+### BUG-017 — Statistics Missing or Incorrect
+* **Problem Statement:** Total playtime conflated local sessions with imported Steam hours; rating distribution and separate playtime analytics were missing.
+* **Root Cause:** `stats.py` and `GamingStatsResponse` did not distinguish between `steam_playtime_minutes` and local `hours_played`.
+* **Resolution:**
+  1. Extended `GamingStatsResponse` schema with `steam_total_hours`, `combined_total_hours`, `rated_games_count`, and `rating_distribution`.
+  2. Implemented metric cards on `StatisticsPage.tsx` distinctly displaying Local Playtime, Steam Playtime, Total Games, Completed Games, Now Playing, Backlog, Wishlist Count, and Average Personal Rating.
+  3. Added Personal Ratings Distribution chart breaking down scores into 5 distinct buckets:
+     * Masterpiece (9.0–10.0)
+     * Great (8.0–8.9)
+     * Good (7.0–7.9)
+     * Mixed/Low (< 7.0)
+     * Unrated
+  4. Built an atmospheric empty library state providing guidance and a quick link to Discover when 0 games are tracked.
+
+### BUG-018 — Settings and Storage Partially Non-Functional
+* **Problem Statement:** Appearance color choices, performance toggles, notification options, and storage settings were partially non-functional or reset across app restarts.
+* **Root Cause:** Several settings in `useAppStore` were not included in `partialize` for persistent storage, and UI controls for accent selection and performance modes were absent.
+* **Resolution:**
+  1. Persisted all user preferences in `localStorage` under `checkpoint-app-preferences` via Zustand persist middleware: `dynamicAccentEnabled`, `defaultAccent`, `minimizeOnLaunch`, `lowGpuMode`, `sessionRemindersEnabled`, `priceAlertsEnabled`, `achievementAlertsEnabled`.
+  2. Appearance Tab: Added Dynamic Game Accent Switching toggle and Default Accent Palette picker offering 8 curated colors (Cyan, Gold, Amber, Sapphire, Yellow, Violet, Crimson, Emerald) with instant CSS variable updates.
+  3. Performance Tab: Added toggles for Reduced Motion, Compact Sidebar Mode, Minimize CHECKPOINT on Game Launch, and Low GPU Background Mode.
+  4. Notifications Tab: Added toggles for Gaming Planner Reminders, Wishlist Price & Deal Alerts, and Steam Achievement Notifications.
+  5. Storage Tab: Fully verified SQLite Online Database Backups (WAL-safe), single-click database restoration with automatic pre-restore safety snapshot, and portable JSON export/import without leaking API credentials.
+
+### BUG-019 — API Configuration and Connection Status
+* **Problem Statement:** Integration status badges showed "Connected" simply if any credential string existed in configuration, without live verification; missing setup links and ITAD/Steam Web API fields.
+* **Root Cause:** Status checks only verified `bool(key)` without attempting live API handshakes.
+* **Resolution:**
+  1. Added `POST /api/v1/system/test-service` endpoint supporting live connection verification for IGDB, SteamGridDB, ITAD, and Steam.
+  2. Provided clear "Required" badge for IGDB and "Optional" badges for SteamGridDB, ITAD, and Steam.
+  3. Added direct official portal links to Twitch Developer Console, SteamGridDB API key page, ITAD waitlist, and Steam Web API key page.
+  4. Implemented individual "Test Connection" buttons on each integration card with animated spinners, latency measurements, and exact diagnostic messages.
+  5. Configured live statuses (`connected`, `authentication_failed`, `unreachable`, `not_configured`) and secured all credential updates with Windows DPAPI encryption.
+
+### BUG-020 — Stress Testing and General Stability Audit
+* **Problem Statement:** Rapid screen switching, rapid artwork changes, and network drops posed potential memory leak and stability risks.
+* **Root Cause:** Image blob URLs required explicit lifecycle revocation; rapid route changes could leave pending query states.
+* **Resolution:**
+  1. Added `clearArtworkBlobCache()` and automatic URL revocation on artwork switching to prevent browser memory leaks.
+  2. Implemented search query sanitization (clamping length, escaping special SQL tokens) to prevent crashes on edge-case inputs.
+  3. Verified rapid view switching, route memory restoration, and clean unmounting across all pages.
+  4. Validated clean application exit and child process teardown with zero orphaned sidecar processes.
+
 ---
 
 ## 3. Verification & Test Evidence
 
 | Suite | Component | Scope | Tests Run | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations, detector, launcher, wishlist decoupling, rating | 37 tests | **37 / 37 Passed** |
-| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete, datepicker, batch 03 unit tests | 23 tests | **23 / 23 Passed** |
+| **Backend** | Python / FastAPI / SQLite | Error classification, security, matching, migrations, detector, launcher, wishlist decoupling, rating, test-service, stats | 37 tests | **37 / 37 Passed** |
+| **Frontend** | React / TypeScript / Vite | Core formatting, spatial navigation, autocomplete, datepicker, batch 03 & 04 unit tests | 29 tests | **29 / 29 Passed** |
 | **Desktop Shell** | Rust / Tauri 2.0 | HMAC-SHA256 handshake, token generator, sidecar binary, app id | 4 tests | **4 / 4 Passed** |
 | **Typecheck** | TypeScript | `tsc -b --noEmit` across all components and features | Whole repo | **0 Errors** |
 | **Linter** | ESLint / React Hooks | Code quality and hook dependency verification | Whole repo | **0 Warnings** |
+| **Packaging** | PyInstaller + Tauri 2.0 | Standalone sidecar binary (30.48 MB) and NSIS / MSI release installers | Windows x64 | **Verified** |
